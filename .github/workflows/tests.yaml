@@ -35,5 +35,12 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
+      - name: Check code with warnings as errors
+        env:
+          RUSTFLAGS: "-D warnings"
+        run: cargo check --all-features
+
       - name: Run tests with Cargo Nextest
+        env:
+          RUSTFLAGS: "-D warnings"
         run: cargo nextest run --locked
