@@ -7,10 +7,6 @@ edition = "2024"
 name = "server"
 path = "src/bin/server/main.rs"
 
-[[bin]]
-name = "management"
-path = "src/bin/management/main.rs"
-
 [dependencies]
 anyhow = "1.0.100"
 axum = { version = "0.8.7", features = ["ws"] }
