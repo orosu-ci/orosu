@@ -53,8 +53,7 @@ struct ClientConfiguration {
 struct Configuration {
     #[serde(rename = "listen")]
     listen: ListenConfiguration,
-    #[serde(rename = "log_level")]
-    #[default]
+    #[serde(rename = "log_level", default)]
     log_level: LogLevelConfiguration,
     #[serde(rename = "whitelisted_ips")]
     ip_whitelist: Option<Vec<IpAddr>>,
