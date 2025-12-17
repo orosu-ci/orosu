@@ -1,6 +1,5 @@
 mod scripts_watcher;
 
-use deadpool_diesel::sqlite::Pool;
 use std::path::PathBuf;
 
 #[derive(Debug, clap::Args)]
@@ -16,5 +15,4 @@ pub struct Configuration {
 
 pub struct ScriptsWatcher {
     directory: PathBuf,
-    database: Pool,
 }

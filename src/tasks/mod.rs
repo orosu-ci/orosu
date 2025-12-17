@@ -1,5 +1,4 @@
 use crate::model::TaskArguments;
-use deadpool_diesel::sqlite::Pool;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -8,12 +7,11 @@ use tokio::sync::{Mutex, RwLock};
 use uuid::Uuid;
 
 mod active_task;
+mod task_update_notification;
 pub mod tasks;
 mod timed_task_event;
-mod task_update_notification;
 
 pub struct Tasks {
-    pub pool: Pool,
     pub active_tasks: Arc<Mutex<HashMap<ActiveTaskKey, Arc<RwLock<ActiveTask>>>>>,
     pub changes_tx: Sender<TaskUpdatedNotification>,
 }

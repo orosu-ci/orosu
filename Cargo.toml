@@ -4,15 +4,17 @@ version = "0.1.0"
 edition = "2024"
 
 [[bin]]
-name = "migration"
-path = "src/bin/migration/main.rs"
+name = "server"
+path = "src/bin/server/main.rs"
+
+[[bin]]
+name = "management"
+path = "src/bin/management/main.rs"
 
 [dependencies]
 anyhow = "1.0.100"
 axum = { version = "0.8.7", features = ["ws"] }
 clap = { version = "4.5.53", features = ["derive", "env"] }
-diesel = { version = "2.3.4", features = ["chrono", "sqlite", "uuid"] }
-diesel_migrations = "2.3.1"
 dotenvy = "0.15.7"
 mime_guess = "2.0.5"
 rust-embed = "8.9.0"
@@ -23,7 +25,6 @@ serde = { version = "1.0.228", features = ["derive"] }
 tower-http = { version = "0.6.7", features = ["trace"] }
 serde_json = "1.0.145"
 derivative = "2.2.0"
-deadpool-diesel = { version = "0.6.1", features = ["sqlite"] }
 argon2 = "0.5.3"
 password-hash = "0.5.0"
 notify = "8.2.0"
@@ -39,3 +40,4 @@ futures-util = "0.3.31"
 bytes = "1.11.0"
 base64 = "0.22.1"
 rand = "0.9.2"
+serde-saphyr = "0.0.11"

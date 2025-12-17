@@ -1,10 +1,6 @@
 use crate::model::WorkerSecretKey;
 use base64::prelude::BASE64_STANDARD;
 use base64::{DecodeError, Engine};
-use diesel::deserialize::FromSql;
-use diesel::serialize::{IsNull, Output, ToSql};
-use diesel::sql_types::Binary;
-use diesel::sqlite::{Sqlite, SqliteValue};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::ops::Deref;
 
@@ -70,20 +66,6 @@ impl<'de> Deserialize<'de> for WorkerSecretKey {
         let bytes = BASE64_STANDARD
             .decode(&s)
             .map_err(serde::de::Error::custom)?;
-        Ok(Self(bytes))
-    }
-}
-
-impl ToSql<Binary, Sqlite> for WorkerSecretKey {
-    fn to_sql<'b>(&'b self, out: &mut Output<'b, '_, Sqlite>) -> diesel::serialize::Result {
-        out.set_value(self.0.clone());
-        Ok(IsNull::No)
-    }
-}
-
-impl FromSql<Binary, Sqlite> for WorkerSecretKey {
-    fn from_sql(bytes: SqliteValue) -> diesel::deserialize::Result<Self> {
-        let bytes = Vec::<u8>::from_sql(bytes)?;
         Ok(Self(bytes))
     }
 }

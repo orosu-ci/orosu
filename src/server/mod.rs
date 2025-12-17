@@ -1,5 +1,4 @@
 use crate::tasks::Tasks;
-use deadpool_diesel::sqlite::Pool;
 use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
@@ -37,7 +36,6 @@ pub struct Configuration {
 pub struct ServerState {
     admin_username: String,
     admin_password: String,
-    database_pool: Pool,
     jwt_decoding_key: DecodingKey,
     jwt_encoding_key: EncodingKey,
     validation: Validation,
@@ -57,7 +55,6 @@ pub struct WebAppAuthClaims {
 
 #[derive(Clone, Debug)]
 pub enum AuthScope {
-    WebApp,
     Worker,
 }
 
@@ -76,6 +73,5 @@ pub struct UserAuthContext {
 
 #[derive(Clone, Debug)]
 pub enum AuthContext {
-    WebApp(UserAuthContext),
     Worker(WorkerAuthContext),
 }

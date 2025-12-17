@@ -1,9 +1,7 @@
 use crate::model::api::ws::TaskMessage;
-use crate::model::DatabaseUuid;
 use crate::server::ServerState;
 use crate::tasks::{TaskEvent, TaskLaunchResult};
 use axum::extract::ws::{CloseFrame, Message, Utf8Bytes, WebSocket};
-use diesel::{BoolExpressionMethods, ExpressionMethods, OptionalExtension, QueryDsl, RunQueryDsl};
 use futures_util::{SinkExt, StreamExt};
 use std::sync::Arc;
 use std::time::Duration;
@@ -55,87 +53,88 @@ impl NewTaskWebSocketHandler {
                 task_id,
                 arguments,
             } => {
-                let moved_script_key: DatabaseUuid = script_key.clone().into();
-                let script_path = state
-                    .database_pool
-                    .get()
-                    .await
-                    .unwrap()
-                    .interact(move |conn| {
-                        use crate::schema::scripts::dsl::*;
-                        scripts
-                            .select(path)
-                            .filter(key.eq(&moved_script_key).and(deleted_on.is_null()))
-                            .first::<String>(conn)
-                            .optional()
-                            .unwrap()
-                    })
-                    .await
-                    .unwrap();
-
-                let Some(script_path) = script_path else {
-                    tracing::error!("Cannot get script path");
-                    return;
-                };
-
-                let script_path_buf = script_path.clone().into();
-
-                let Ok(task) = tasks
-                    .get_or_start(script_key, task_id, script_path_buf, arguments)
-                    .await
-                else {
-                    tracing::error!("Cannot get or start task");
-                    return;
-                };
-                match task {
-                    TaskLaunchResult::Created(task) => {
-                        tracing::info!(
-                            "Starting task {} for script {}: {}",
-                            task_id,
-                            script_key,
-                            script_path,
-                        );
-                        let mut rx = task.read().await.events_tx.subscribe();
-                        for event in task.read().await.events.iter() {
-                            tracing::info!("Task event history: {:?}", event);
-                            if let Err(e) = sender
-                                .send(Message::Text(serde_json::to_string(&event).unwrap().into()))
-                                .await
-                            {
-                                tracing::error!("Cannot send history event: {:?}", e);
-                                break;
-                            };
-                        }
-                        while let Ok(event) = rx.recv().await {
-                            tracing::info!("Task event real-time: {:?}", event);
-                            if let Err(e) = sender
-                                .send(Message::Text(serde_json::to_string(&event).unwrap().into()))
-                                .await
-                            {
-                                tracing::error!("Cannot send real-time event: {:?}", e);
-                                break;
-                            };
-                            if let TaskEvent::Finished(code) = event.event {
-                                tracing::info!("Task finished with code {}", code);
-                                break;
-                            }
-                        }
-                    }
-                    TaskLaunchResult::Finished(task) => {
-                        tracing::info!(
-                            "Task {} for script {} was already finished: {}",
-                            task_id,
-                            script_key,
-                            script_path
-                        );
-                        for event in task.events {
-                            sender
-                                .send(Message::Text(serde_json::to_string(&event).unwrap().into()))
-                                .await
-                                .unwrap();
-                        }
-                    }
-                }
+                todo!();
+                // let moved_script_key: DatabaseUuid = script_key.clone().into();
+                // let script_path = state
+                //     .database_pool
+                //     .get()
+                //     .await
+                //     .unwrap()
+                //     .interact(move |conn| {
+                //         use crate::schema::scripts::dsl::*;
+                //         scripts
+                //             .select(path)
+                //             .filter(key.eq(&moved_script_key).and(deleted_on.is_null()))
+                //             .first::<String>(conn)
+                //             .optional()
+                //             .unwrap()
+                //     })
+                //     .await
+                //     .unwrap();
+                //
+                // let Some(script_path) = script_path else {
+                //     tracing::error!("Cannot get script path");
+                //     return;
+                // };
+                //
+                // let script_path_buf = script_path.clone().into();
+                //
+                // let Ok(task) = tasks
+                //     .get_or_start(script_key, task_id, script_path_buf, arguments)
+                //     .await
+                // else {
+                //     tracing::error!("Cannot get or start task");
+                //     return;
+                // };
+                // match task {
+                //     TaskLaunchResult::Created(task) => {
+                //         tracing::info!(
+                //             "Starting task {} for script {}: {}",
+                //             task_id,
+                //             script_key,
+                //             script_path,
+                //         );
+                //         let mut rx = task.read().await.events_tx.subscribe();
+                //         for event in task.read().await.events.iter() {
+                //             tracing::info!("Task event history: {:?}", event);
+                //             if let Err(e) = sender
+                //                 .send(Message::Text(serde_json::to_string(&event).unwrap().into()))
+                //                 .await
+                //             {
+                //                 tracing::error!("Cannot send history event: {:?}", e);
+                //                 break;
+                //             };
+                //         }
+                //         while let Ok(event) = rx.recv().await {
+                //             tracing::info!("Task event real-time: {:?}", event);
+                //             if let Err(e) = sender
+                //                 .send(Message::Text(serde_json::to_string(&event).unwrap().into()))
+                //                 .await
+                //             {
+                //                 tracing::error!("Cannot send real-time event: {:?}", e);
+                //                 break;
+                //             };
+                //             if let TaskEvent::Finished(code) = event.event {
+                //                 tracing::info!("Task finished with code {}", code);
+                //                 break;
+                //             }
+                //         }
+                //     }
+                //     TaskLaunchResult::Finished(task) => {
+                //         tracing::info!(
+                //             "Task {} for script {} was already finished: {}",
+                //             task_id,
+                //             script_key,
+                //             script_path
+                //         );
+                //         for event in task.events {
+                //             sender
+                //                 .send(Message::Text(serde_json::to_string(&event).unwrap().into()))
+                //                 .await
+                //                 .unwrap();
+                //         }
+                //     }
+                // }
             }
         }
 

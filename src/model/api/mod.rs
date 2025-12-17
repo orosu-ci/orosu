@@ -1,6 +1,3 @@
-mod script_response_payload;
-mod task_response_payload;
-mod worker_response_payload;
 pub mod ws;
 
 use crate::model::WorkerSecretKey;

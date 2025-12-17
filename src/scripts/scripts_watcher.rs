@@ -1,12 +1,7 @@
-use crate::scripts::{Configuration, ScriptsWatcher};
-use chrono::NaiveDateTime;
-use deadpool_diesel::sqlite::Pool;
-use diesel::{update, ExpressionMethods, QueryDsl, RunQueryDsl, SqliteConnection};
 use notify::event::{CreateKind, ModifyKind, RemoveKind};
-use notify::{Event, EventKind, RecursiveMode, Watcher};
+use notify::{Event, EventKind};
 use std::fs::metadata;
 use std::path::PathBuf;
-use std::sync::mpsc;
 
 #[derive(Debug)]
 enum ScriptWorkerTask {
@@ -36,41 +31,7 @@ impl<T> ScriptStatus<T> {
     }
 }
 
-impl ScriptsWatcher {
-    pub fn new(configuration: Configuration, database: Pool) -> Self {
-        Self {
-            directory: configuration.scripts_directory,
-            database,
-        }
-    }
-
-    pub async fn watch(&self) -> anyhow::Result<()> {
-        let (tx, rx) = mpsc::channel::<notify::Result<Event>>();
-
-        let mut watcher = notify::recommended_watcher(tx)?;
-
-        watcher.watch(self.directory.as_path(), RecursiveMode::NonRecursive)?;
-
-        handle_task(
-            ScriptWorkerTask::Init(self.directory.clone()),
-            self.database.clone(),
-        )
-        .await?;
-
-        for res in rx {
-            match res {
-                Ok(event) => {
-                    handle_task(ScriptWorkerTask::HandleEvent(event), self.database.clone()).await?
-                }
-                Err(e) => tracing::error!("watch error: {:?}", e),
-            }
-        }
-
-        Ok(())
-    }
-}
-
-async fn handle_task(task: ScriptWorkerTask, database: Pool) -> anyhow::Result<()> {
+async fn handle_task(task: ScriptWorkerTask) -> anyhow::Result<()> {
     let task_result = match &task {
         ScriptWorkerTask::Init(p) => {
             let mut results = vec![];
@@ -121,71 +82,5 @@ async fn handle_task(task: ScriptWorkerTask, database: Pool) -> anyhow::Result<(
         },
     };
 
-    use crate::schema::scripts::dsl::*;
-    let connection = database.get().await?;
-    connection
-        .interact(|conn| {
-            let existing_paths = scripts
-                .select(path)
-                .load::<String>(conn)
-                .map_err(|e| anyhow::anyhow!(e))?;
-
-            match task_result {
-                TaskResult::Directory(results) => {
-                    for result in results {
-                        process_script(result, &existing_paths, conn)?;
-                    }
-                }
-                TaskResult::SingleFile(result) => process_script(result, &existing_paths, conn)?,
-                TaskResult::Nothing => { /* do nothing */ }
-            }
-            anyhow::Ok(())
-        })
-        .await
-        .map_err(|e| anyhow::anyhow!("{:?}", e))??;
-    Ok(())
-}
-
-fn process_script(
-    script: ScriptStatus<PathBuf>,
-    existing_paths: &Vec<String>,
-    connection: &mut SqliteConnection,
-) -> anyhow::Result<()> {
-    use crate::schema::scripts::dsl::*;
-    let result = script.map(|p| p.to_str().unwrap().to_string());
-    match result {
-        ScriptStatus::Active(p) => {
-            if existing_paths.contains(&p) {
-                update(scripts)
-                    .filter(path.eq(&p))
-                    .set((
-                        deleted_on.eq::<Option<NaiveDateTime>>(None),
-                        updated_on.eq(diesel::dsl::now),
-                    ))
-                    .execute(connection)
-                    .inspect_err(|e| {
-                        tracing::error!("Cannot delete script: {:?}", e);
-                    })?;
-            } else {
-                diesel::insert_into(scripts)
-                    .values((path.eq(&p), key.eq(uuid::Uuid::new_v4().to_string())))
-                    .execute(connection)?;
-            }
-        }
-        ScriptStatus::Skip(p) => {
-            if existing_paths.contains(&p) {
-                update(scripts)
-                    .filter(path.eq(&p))
-                    .set((
-                        deleted_on.eq(diesel::dsl::now),
-                        updated_on.eq(diesel::dsl::now),
-                    ))
-                    .execute(connection)
-                    .inspect_err(|e| {
-                        tracing::error!("Cannot delete script: {:?}", e);
-                    })?;
-            }
-        }
-    };
     Ok(())
 }
