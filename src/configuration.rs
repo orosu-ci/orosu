@@ -10,22 +10,17 @@ enum ListenConfiguration {
     Socket(PathBuf),
 }
 
-#[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Default)]
 enum LogLevelConfiguration {
     #[serde(rename = "debug")]
     Debug,
     #[serde(rename = "info")]
+    #[default]
     Info,
     #[serde(rename = "warn")]
     Warn,
     #[serde(rename = "error")]
     Error,
-}
-
-impl Default for LogLevelConfiguration {
-    fn default() -> Self {
-        LogLevelConfiguration::Info
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -58,7 +53,8 @@ struct ClientConfiguration {
 struct Configuration {
     #[serde(rename = "listen")]
     listen: ListenConfiguration,
-    #[serde(rename = "log_level", default = "LogLevelConfiguration::default")]
+    #[serde(rename = "log_level")]
+    #[default]
     log_level: LogLevelConfiguration,
     #[serde(rename = "whitelisted_ips")]
     ip_whitelist: Option<Vec<IpAddr>>,
@@ -68,6 +64,7 @@ struct Configuration {
     clients: Vec<ClientConfiguration>,
 }
 
+#[cfg(test)]
 mod tests {
     use crate::configuration::ListenConfiguration::{Socket, Tcp};
     use crate::configuration::{Configuration, ListenConfiguration, LogLevelConfiguration};
@@ -83,10 +80,7 @@ mod tests {
         let Tcp(addr) = configuration else {
             panic!("Expected Tcp configuration");
         };
-        assert_eq!(
-            addr.ip(),
-            std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0))
-        );
+        assert_eq!(addr.ip(), IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)));
         assert_eq!(addr.port(), 8081);
     }
 
@@ -100,7 +94,7 @@ mod tests {
         };
         assert_eq!(
             addr.ip(),
-            std::net::IpAddr::V6(std::net::Ipv6Addr::new(
+            IpAddr::V6(std::net::Ipv6Addr::new(
                 0xfc00, 0xdb20, 0x35b, 0x7399, 0, 0, 0, 0x5
             ))
         );

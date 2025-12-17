@@ -1,4 +1,4 @@
-use nerdy_releaser_api::{scripts, server};
+use orosu::{scripts, server};
 
 #[derive(Debug, clap::Parser)]
 #[command(version, about, long_about = None)]

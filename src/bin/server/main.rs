@@ -2,8 +2,8 @@ mod configuration;
 
 use crate::configuration::Configuration;
 use clap::Parser;
-use nerdy_releaser_api::server;
-use nerdy_releaser_api::tasks::Tasks;
+use orosu::server;
+use orosu::tasks::Tasks;
 use server::Server;
 
 #[tokio::main]
