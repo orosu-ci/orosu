@@ -43,4 +43,4 @@ jobs:
       - name: Run tests with Cargo Nextest
         env:
           RUSTFLAGS: "-D warnings"
-        run: cargo nextest run --locked
+        run: cargo nextest run --locked --all-features
