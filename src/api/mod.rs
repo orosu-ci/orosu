@@ -1,5 +1,6 @@
 pub mod client;
 pub mod envelopes;
+mod user_agent_header;
 
 use crate::tasks::{TaskOutput, Timestamped};
 use chrono::{DateTime, Utc};
@@ -53,4 +54,8 @@ pub enum ServerTaskNotification<O, E> {
     Output(O),
     #[serde(rename = "exit_code")]
     ExitCode(E),
+}
+
+pub struct UserAgentHeader {
+    pub version: String,
 }

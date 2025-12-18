@@ -117,6 +117,7 @@ async fn blacklist_layer(
         .map(|e| e.0)
         .unwrap_or_else(|_| remote_addr.ip());
     if blacklist.iter().any(|cidr| cidr.contains(&ip)) {
+        tracing::warn!("Client {} is blacklisted", ip);
         return StatusCode::FORBIDDEN.into_response();
     }
     next.run(Request::from_parts(parts, body)).await
@@ -137,6 +138,7 @@ async fn whitelist_layer(
         .map(|e| e.0)
         .unwrap_or_else(|_| remote_addr.ip());
     if !whitelist.iter().any(|cidr| cidr.contains(&ip)) {
+        tracing::warn!("Client {} is not whitelisted", ip);
         return StatusCode::FORBIDDEN.into_response();
     }
     next.run(Request::from_parts(parts, body)).await

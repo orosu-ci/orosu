@@ -1,11 +1,14 @@
 use crate::api::envelopes::{
     TaskEventResponseEnvelope, TaskLaunchRequestEnvelope, TaskLaunchStatusResponseEnvelope,
 };
-use crate::api::{ServerErrorResponse, ServerTaskNotification, StartTaskRequest, TaskLaunchStatus};
+use crate::api::{
+    ServerErrorResponse, ServerTaskNotification, StartTaskRequest, TaskLaunchStatus,
+    UserAgentHeader,
+};
 use crate::tasks::TaskOutput;
 use anyhow::Context;
 use axum::http::Uri;
-use axum::http::header::AUTHORIZATION;
+use axum::http::header::{AUTHORIZATION, USER_AGENT};
 use futures_util::{SinkExt, StreamExt};
 use std::process::exit;
 use tokio::net::TcpStream;
@@ -20,16 +23,17 @@ pub struct ApiClient {
 
 impl ApiClient {
     pub async fn connect(endpoint: Uri, key: String) -> anyhow::Result<Self> {
+        let user_agent_header = UserAgentHeader::default();
         let mut request = endpoint
             .clone()
             .into_client_request()
             .context("Cannot create request")?;
-        request.headers_mut().insert(
-            AUTHORIZATION,
-            format!("Bearer {key}")
-                .parse()
-                .context("Invalid header value")?,
-        );
+        request
+            .headers_mut()
+            .insert(AUTHORIZATION, format!("Bearer {key}").parse()?);
+        request
+            .headers_mut()
+            .insert(USER_AGENT, user_agent_header.into());
 
         let (ws_stream, _) = tokio_tungstenite::connect_async(request)
             .await
