@@ -1,9 +1,9 @@
 use crate::server::{AuthContext, AuthScope, ServerState, WorkerAuthContext};
+use axum::Extension;
 use axum::extract::FromRequestParts;
+use axum::http::StatusCode;
 use axum::http::header::AUTHORIZATION;
 use axum::http::request::Parts;
-use axum::http::StatusCode;
-use axum::Extension;
 use std::sync::Arc;
 
 impl AuthScope {

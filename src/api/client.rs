@@ -4,14 +4,14 @@ use crate::api::envelopes::{
 use crate::api::{ServerErrorResponse, ServerTaskNotification, StartTaskRequest, TaskLaunchStatus};
 use crate::tasks::TaskOutput;
 use anyhow::Context;
-use axum::http::header::AUTHORIZATION;
 use axum::http::Uri;
+use axum::http::header::AUTHORIZATION;
 use futures_util::{SinkExt, StreamExt};
 use std::process::exit;
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
-use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::tungstenite::Message;
+use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
 pub struct ApiClient {
