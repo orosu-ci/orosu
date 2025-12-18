@@ -3,7 +3,6 @@ use axum::http::Uri;
 use clap::Parser;
 use orosu::api::client::ApiClient;
 use std::str::FromStr;
-use uuid::Uuid;
 
 mod arguments;
 
@@ -29,10 +28,8 @@ async fn main() -> anyhow::Result<()> {
 
     let client = ApiClient::connect(uri, arguments.key).await?;
 
-    let run_id = Uuid::new_v4();
-
     client
-        .start_task(run_id, arguments.variables, arguments.script)
+        .start_task(arguments.variables, arguments.script)
         .await?;
 
     Ok(())

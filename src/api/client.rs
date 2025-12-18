@@ -13,7 +13,6 @@ use tokio::sync::Mutex;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
-use uuid::Uuid;
 
 pub struct ApiClient {
     ws_stream: Mutex<WebSocketStream<MaybeTlsStream<TcpStream>>>,
@@ -41,18 +40,15 @@ impl ApiClient {
 
     pub async fn start_task(
         &self,
-        run_id: Uuid,
         arguments: Vec<String>,
         script_name: String,
     ) -> anyhow::Result<()> {
         let mut ws_stream = self.ws_stream.lock().await;
 
         let start_task_request = TaskLaunchRequestEnvelope {
-            id: Uuid::new_v4(),
             body: StartTaskRequest {
                 script_name,
                 arguments,
-                run_id,
             },
         };
         ws_stream

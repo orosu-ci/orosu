@@ -54,7 +54,6 @@ async fn handle_task_run_output(mut socket: WebSocket, client: Client) {
 
     let (mut sender, mut receiver) = socket.split();
 
-    let run_id = start_task_message_payload.body.run_id;
     let arguments = start_task_message_payload.body.arguments;
 
     let script_name = start_task_message_payload.body.script_name;
@@ -63,7 +62,6 @@ async fn handle_task_run_output(mut socket: WebSocket, client: Client) {
     let Some(script) = script else {
         tracing::error!("Script {} not found", script_name);
         let error_message = TaskLaunchStatusResponseEnvelope::Failure {
-            id: start_task_message_payload.id,
             error: ServerErrorResponse::ScriptNotFound,
         };
         _ = sender.send(Message::Binary(error_message.into())).await;
@@ -82,7 +80,6 @@ async fn handle_task_run_output(mut socket: WebSocket, client: Client) {
         Err(e) => {
             tracing::error!("Unable to launch script {}: {:?}", script_name, e);
             let error_message = TaskLaunchStatusResponseEnvelope::Failure {
-                id: start_task_message_payload.id,
                 error: ServerErrorResponse::CannotLaunchScript,
             };
             _ = sender.send(Message::Binary(error_message.into())).await;
@@ -92,14 +89,13 @@ async fn handle_task_run_output(mut socket: WebSocket, client: Client) {
     };
 
     let created_message = TaskLaunchStatusResponseEnvelope::Success {
-        id: start_task_message_payload.id,
         body: TaskLaunchStatus::Launched {
             started_on: created_on,
         },
     };
     _ = sender.send(Message::Binary(created_message.into())).await;
 
-    tracing::info!("Starting task {} for script {}", run_id, script_name);
+    tracing::info!("Starting task for script {}", script_name);
 
     let mut rx = output.subscribe();
 
@@ -111,7 +107,6 @@ async fn handle_task_run_output(mut socket: WebSocket, client: Client) {
                     Ok(event) => {
                         tracing::info!("Task event: {:?}", event);
                         let message = TaskEventResponseEnvelope::Success {
-                            id: start_task_message_payload.id,
                             body: ServerTaskNotification::Output(event),
                         };
                         if let Err(e) = sender.send(Message::Binary(message.into())).await {
@@ -131,12 +126,15 @@ async fn handle_task_run_output(mut socket: WebSocket, client: Client) {
         }
     };
     let Some(exit_code) = exit_code else {
-        tracing::info!("Task {} was not awaited to be finished", run_id);
+        tracing::info!("Script {} was not awaited to be finished", script_name);
         return;
     };
-    tracing::info!("Task {} has finished with {} exit code", run_id, exit_code);
+    tracing::info!(
+        "Script {} has finished with {} exit code",
+        script_name,
+        exit_code
+    );
     let message = TaskEventResponseEnvelope::Success {
-        id: start_task_message_payload.id,
         body: ServerTaskNotification::ExitCode(exit_code),
     };
     if let Err(e) = sender.send(Message::Binary(message.into())).await {

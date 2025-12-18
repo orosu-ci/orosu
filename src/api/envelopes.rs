@@ -3,12 +3,9 @@ use crate::tasks::{TaskOutput, Timestamped};
 use bytes::Bytes;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RequestEnvelope<T> {
-    #[serde(rename = "id")]
-    pub id: Uuid,
     #[serde(rename = "body")]
     pub body: T,
 }
@@ -17,15 +14,11 @@ pub struct RequestEnvelope<T> {
 pub enum ResponseEnvelope<T, E> {
     #[serde(rename = "success")]
     Success {
-        #[serde(rename = "id")]
-        id: Uuid,
         #[serde(rename = "body")]
         body: T,
     },
     #[serde(rename = "failure")]
     Failure {
-        #[serde(rename = "id")]
-        id: Uuid,
         #[serde(rename = "error")]
         error: E,
     },

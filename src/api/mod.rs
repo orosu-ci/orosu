@@ -4,7 +4,6 @@ pub mod envelopes;
 use crate::tasks::{TaskOutput, Timestamped};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct StartTaskRequest {
@@ -12,8 +11,6 @@ pub struct StartTaskRequest {
     pub script_name: String,
     #[serde(rename = "args")]
     pub arguments: Vec<String>,
-    #[serde(rename = "run_id")]
-    pub run_id: Uuid,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -38,14 +35,6 @@ pub enum TaskLaunchStatus {
         #[serde(rename = "output")]
         output: Vec<Timestamped<TaskOutput>>,
     },
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct StartTaskResponse {
-    #[serde(rename = "run_id")]
-    run_id: Uuid,
-    #[serde(rename = "status")]
-    status: TaskLaunchStatus,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
