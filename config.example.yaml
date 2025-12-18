@@ -25,8 +25,12 @@ clients:
       - "192.168.0.1"
     scripts: # A list of scripts that can be executed by this client
       - name: "my-script" # Name will be used in CI to call the script
-        allowed_variables: # A list of variables that are expected to be sent by the CI job
-          - "MY_VAR"
         working_directory: "/tmp" # A working directory for the script
-        command: "echo" # A command that will be executed.
+        command:
+          - "echo" # A command that will be executed.
+      - name: "long-script"
+        working_directory: "./"
+        command:
+          - "sh"
+          - "long_script.sh"
 

@@ -3,7 +3,6 @@ use crate::configuration::ListenConfiguration;
 use crate::model::api::ErrorCode;
 use crate::server::handler::TasksHandler;
 use crate::server::{AuthScope, Server, ServerState};
-use crate::tasks::Tasks;
 use anyhow::Context;
 use axum::extract::{ConnectInfo, FromRequestParts, Request, State};
 use axum::middleware::Next;
@@ -15,8 +14,8 @@ use std::sync::Arc;
 use tower_http::trace::TraceLayer;
 
 impl Server {
-    pub fn new(listen: ListenConfiguration, clients: Vec<Client>, tasks: Tasks) -> Self {
-        let state = Arc::new(ServerState { tasks, clients });
+    pub fn new(listen: ListenConfiguration, clients: Vec<Client>) -> Self {
+        let state = Arc::new(ServerState { clients });
         Self { listen, state }
     }
 

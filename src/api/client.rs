@@ -1,17 +1,18 @@
 use crate::api::envelopes::{
     TaskEventResponseEnvelope, TaskLaunchRequestEnvelope, TaskLaunchStatusResponseEnvelope,
 };
-use crate::api::{ServerTaskNotification, StartTaskRequest};
+use crate::api::{ServerErrorResponse, ServerTaskNotification, StartTaskRequest, TaskLaunchStatus};
+use crate::tasks::TaskOutput;
 use anyhow::Context;
 use axum::http::header::AUTHORIZATION;
 use axum::http::Uri;
 use futures_util::{SinkExt, StreamExt};
+use std::process::exit;
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
-use tracing::event;
 use uuid::Uuid;
 
 pub struct ApiClient {
@@ -72,7 +73,29 @@ impl ApiClient {
 
         let response: TaskLaunchStatusResponseEnvelope = response_bytes.into();
 
-        tracing::info!("Task launch response: {:?}", response);
+        match response {
+            TaskLaunchStatusResponseEnvelope::Success { body, .. } => {
+                match body {
+                    TaskLaunchStatus::Launched { .. } => {
+                        // do nothing
+                    }
+                    TaskLaunchStatus::Running { output, .. } => {
+                        for line in output {
+                            line.value.print();
+                        }
+                    }
+                    TaskLaunchStatus::Finished {
+                        output, exit_code, ..
+                    } => {
+                        for line in output {
+                            line.value.print();
+                        }
+                        exit(exit_code);
+                    }
+                }
+            }
+            TaskLaunchStatusResponseEnvelope::Failure { error, .. } => error.panic(),
+        };
 
         while let Some(event) = ws_stream.next().await {
             let event = event?;
@@ -82,16 +105,16 @@ impl ApiClient {
                     match event {
                         TaskEventResponseEnvelope::Success { body, .. } => match body {
                             ServerTaskNotification::Output(output) => {
-                                tracing::info!("Task output: {:?}", output);
+                                output.value.print();
                             }
                             ServerTaskNotification::ExitCode(exit_code) => {
-                                tracing::info!("Task exited with code {}", exit_code);
                                 ws_stream.send(Message::Close(None)).await?;
+                                exit(exit_code);
                             }
                         },
                         TaskEventResponseEnvelope::Failure { error, .. } => {
-                            tracing::error!("Task failed: {:?}", error);
                             ws_stream.send(Message::Close(None)).await?;
+                            error.panic();
                         }
                     }
                 }
@@ -100,11 +123,30 @@ impl ApiClient {
                     break;
                 }
                 _ => {
-                    event!(tracing::Level::ERROR, "Unexpected message: {:?}", event);
+                    panic!("Unexpected message: {:?}", event);
                 }
             }
         }
 
         Ok(())
+    }
+}
+
+impl TaskOutput {
+    fn print(&self) {
+        match self {
+            TaskOutput::Stdout(line) => println!("{}", line),
+            TaskOutput::Stderr(line) => eprintln!("{}", line),
+        }
+    }
+}
+
+impl ServerErrorResponse {
+    fn panic(&self) {
+        match self {
+            ServerErrorResponse::CannotLaunchScript => panic!("Cannot launch script"),
+            ServerErrorResponse::ScriptNotFound => panic!("Script not found"),
+            ServerErrorResponse::Unknown => panic!("Unknown error"),
+        }
     }
 }

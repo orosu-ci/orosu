@@ -1,6 +1,5 @@
 use crate::client::Client;
 use crate::configuration::ListenConfiguration;
-use crate::tasks::Tasks;
 use jsonwebtoken::Header;
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
@@ -35,7 +34,6 @@ pub struct Configuration {
 }
 
 pub struct ServerState {
-    tasks: Tasks,
     clients: Vec<Client>,
 }
 

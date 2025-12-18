@@ -5,10 +5,8 @@ use std::path::PathBuf;
 pub struct Script {
     #[serde(rename = "name")]
     pub(crate) name: String,
-    #[serde(rename = "allowed_variables")]
-    pub(crate) allowed_variables: Vec<String>,
     #[serde(rename = "working_directory")]
     pub(crate) working_directory: PathBuf,
     #[serde(rename = "command")]
-    pub(crate) command: String,
+    pub(crate) command: Vec<String>,
 }

@@ -5,7 +5,8 @@ use crate::api::{ServerErrorResponse, ServerTaskNotification, StartTaskRequest, 
 use crate::client::Client;
 use crate::server::handler::TasksHandler;
 use crate::server::{AuthContext, ServerState};
-use crate::tasks::TaskLaunchResult;
+use crate::tasks::task::Task;
+use crate::tasks::{ActiveTask, TaskLaunchResult};
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{State, WebSocketUpgrade};
 use axum::response::IntoResponse;
@@ -76,12 +77,13 @@ async fn handle_task_run_output(mut socket: WebSocket, client: Client, state: Ar
         return;
     };
 
-    let tasks = &state.tasks;
+    let task = Task::create(script.clone());
 
-    let task_launch_result = match tasks
-        .get_or_start(run_id, client_name, script.clone(), arguments)
-        .await
-    {
+    let TaskLaunchResult {
+        created_on,
+        output,
+        handler,
+    } = match task.run(arguments).await {
         Ok(task) => task,
         Err(e) => {
             tracing::error!("Unable to launch script {}: {:?}", script_name, e);
@@ -95,79 +97,57 @@ async fn handle_task_run_output(mut socket: WebSocket, client: Client, state: Ar
         }
     };
 
-    match task_launch_result {
-        TaskLaunchResult::Created {
-            created_on,
-            output_tx,
-            handler,
-        } => {
-            let created_message = TaskLaunchStatusResponseEnvelope::Success {
-                id: start_task_message_payload.id,
-                body: TaskLaunchStatus::Launched {
-                    started_on: created_on,
-                },
-            };
-            _ = sender.send(Message::Binary(created_message.into())).await;
+    let created_message = TaskLaunchStatusResponseEnvelope::Success {
+        id: start_task_message_payload.id,
+        body: TaskLaunchStatus::Launched {
+            started_on: created_on,
+        },
+    };
+    _ = sender.send(Message::Binary(created_message.into())).await;
 
-            tracing::info!("Starting task {} for script {}", run_id, script_name);
+    tracing::info!("Starting task {} for script {}", run_id, script_name);
 
-            let mut rx = output_tx.subscribe();
+    let mut rx = output.subscribe();
 
-            let mut handler_fuse = handler;
-            let exit_code = loop {
-                tokio::select! {
-                    maybe_event = rx.recv() => {
-                        match maybe_event {
-                            Ok(event) => {
-                                tracing::info!("Task event: {:?}", event);
-                                let message = TaskEventResponseEnvelope::Success {
-                                    id: start_task_message_payload.id,
-                                    body: ServerTaskNotification::Output(event),
-                                };
-                                if let Err(e) = sender.send(Message::Binary(message.into())).await {
-                                    tracing::error!("Cannot send real-time event: {:?}", e);
-                                    break None;
-                                };
-                            }
-                            Err(tokio::sync::broadcast::error::RecvError::Lagged(count)) => {
-                                tracing::warn!("Receiver lagged by {} messages", count);
-                            }
-                            Err(tokio::sync::broadcast::error::RecvError::Closed) => {
-                                break None;
-                            }
-                        }
+    let mut handler_fuse = handler;
+    let exit_code = loop {
+        tokio::select! {
+            maybe_event = rx.recv() => {
+                match maybe_event {
+                    Ok(event) => {
+                        tracing::info!("Task event: {:?}", event);
+                        let message = TaskEventResponseEnvelope::Success {
+                            id: start_task_message_payload.id,
+                            body: ServerTaskNotification::Output(event),
+                        };
+                        if let Err(e) = sender.send(Message::Binary(message.into())).await {
+                            tracing::error!("Cannot send real-time event: {:?}", e);
+                            break None;
+                        };
                     }
-                    res = &mut handler_fuse => break Some(res.unwrap()),
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(count)) => {
+                        tracing::warn!("Receiver lagged by {} messages", count);
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => {
+                        tracing::warn!("Receiver was closed");
+                    }
                 }
-            };
-            let Some(exit_code) = exit_code else {
-                tracing::info!("Task {} was not awaited to be finished", run_id);
-                return;
-            };
-            tracing::info!("Task {} has finished with {} exit code", run_id, exit_code);
-            let message = TaskEventResponseEnvelope::Success {
-                id: start_task_message_payload.id,
-                body: ServerTaskNotification::ExitCode(exit_code),
-            };
-            if let Err(e) = sender.send(Message::Binary(message.into())).await {
-                tracing::error!("Cannot send exit-code event: {:?}", e);
-            };
+            }
+            res = &mut handler_fuse => break Some(res.unwrap()),
         }
-        TaskLaunchResult::Joined { .. } => {}
-        TaskLaunchResult::Finished { .. } => {
-            tracing::info!(
-                "Task {} for script {} was already finished",
-                run_id,
-                script_name
-            );
-            // for event in task.events {
-            //     sender
-            //         .send(Message::Text(serde_json::to_string(&event).unwrap().into()))
-            //         .await
-            //         .unwrap();
-            // }
-        }
-    }
+    };
+    let Some(exit_code) = exit_code else {
+        tracing::info!("Task {} was not awaited to be finished", run_id);
+        return;
+    };
+    tracing::info!("Task {} has finished with {} exit code", run_id, exit_code);
+    let message = TaskEventResponseEnvelope::Success {
+        id: start_task_message_payload.id,
+        body: ServerTaskNotification::ExitCode(exit_code),
+    };
+    if let Err(e) = sender.send(Message::Binary(message.into())).await {
+        tracing::error!("Cannot send exit-code event: {:?}", e);
+    };
 
     if let Err(e) = sender.send(Message::Close(None)).await {
         tracing::error!("Cannot send close message: {:?}", e);

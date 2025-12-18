@@ -1,55 +1,22 @@
 use crate::model::TaskArguments;
-use crate::tasks::task::Task;
 pub(crate) use crate::tasks::timestamped::Timestamped;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::sync::Arc;
 use tokio::sync::broadcast::Sender;
-use tokio::sync::{Mutex, RwLock};
 use tokio::task::JoinHandle;
 use uuid::Uuid;
 
-mod task;
-mod task_update_notification;
-pub mod tasks;
+pub(crate) mod task;
 mod timed_task_event;
 mod timestamped;
 
-pub struct Tasks {
-    pub active_tasks: Arc<Mutex<HashMap<ActiveTaskKey, Arc<RwLock<Task>>>>>,
-}
-
-#[derive(Debug, Clone, Hash, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
-pub struct ActiveTaskKey {
-    pub script_name: String,
-    pub client_name: String,
-    pub run_id: Uuid,
-}
-
-pub enum TaskLaunchResult {
-    Created {
-        created_on: chrono::DateTime<chrono::Utc>,
-        output_tx: Sender<Timestamped<TaskOutput>>,
-        handler: JoinHandle<i32>,
-    },
-    Joined {
-        created_on: chrono::DateTime<chrono::Utc>,
-        output: Vec<Timestamped<TaskOutput>>,
-        output_tx: Sender<Timestamped<TaskOutput>>,
-        handler: JoinHandle<i32>,
-    },
-    Finished {
-        created_on: chrono::DateTime<chrono::Utc>,
-        finished_on: chrono::DateTime<chrono::Utc>,
-        exit_code: i32,
-        output: Vec<Timestamped<TaskOutput>>,
-    },
+pub struct TaskLaunchResult {
+    pub(crate) created_on: chrono::DateTime<chrono::Utc>,
+    pub(crate) output: Sender<Timestamped<TaskOutput>>,
+    pub(crate) handler: JoinHandle<i32>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskUpdatedNotification {
-    #[serde(rename = "key")]
-    pub key: ActiveTaskKey,
     #[serde(rename = "timestamp")]
     pub timestamp: chrono::DateTime<chrono::Utc>,
     #[serde(rename = "body")]

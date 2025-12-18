@@ -4,7 +4,6 @@ use crate::arguments::CliArguments;
 use clap::Parser;
 use orosu::configuration::Configuration;
 use orosu::server;
-use orosu::tasks::Tasks;
 use server::Server;
 
 #[tokio::main]
@@ -20,9 +19,7 @@ async fn main() -> anyhow::Result<()> {
 
     let configuration = Configuration::from_file(&arguments.config_file_path)?;
 
-    let tasks = Tasks::new();
-
-    let server = Server::new(configuration.listen, configuration.clients, tasks);
+    let server = Server::new(configuration.listen, configuration.clients);
 
     server.serve().await?;
 

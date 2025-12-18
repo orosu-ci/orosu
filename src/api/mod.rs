@@ -35,6 +35,8 @@ pub enum TaskLaunchStatus {
         finished_on: DateTime<Utc>,
         #[serde(rename = "exit_code")]
         exit_code: i32,
+        #[serde(rename = "output")]
+        output: Vec<Timestamped<TaskOutput>>,
     },
 }
 
