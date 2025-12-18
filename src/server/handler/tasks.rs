@@ -7,18 +7,47 @@ use crate::server::AuthContext;
 use crate::server::handler::TasksHandler;
 use crate::tasks::TaskLaunchResult;
 use crate::tasks::task::Task;
-use axum::extract::WebSocketUpgrade;
 use axum::extract::ws::{Message, WebSocket};
+use axum::extract::{ConnectInfo, FromRequestParts, Request, WebSocketUpgrade};
+use axum::http::StatusCode;
 use axum::response::IntoResponse;
+use axum_client_ip::ClientIp;
 use futures_util::{SinkExt, StreamExt};
+use std::net::SocketAddr;
 use std::time::Duration;
 use tokio::time::timeout;
 
 impl TasksHandler {
-    pub async fn attach(auth_context: AuthContext, ws: WebSocketUpgrade) -> impl IntoResponse {
+    pub async fn attach(
+        ConnectInfo(remote_addr): ConnectInfo<SocketAddr>,
+        auth_context: AuthContext,
+        ws: WebSocketUpgrade,
+        request: Request,
+    ) -> impl IntoResponse {
         let client = match auth_context {
             AuthContext::Worker(worker_auth_context) => worker_auth_context.client,
         };
+
+        let (mut parts, _) = request.into_parts();
+
+        let ip = ClientIp::from_request_parts(&mut parts, &())
+            .await
+            .map(|e| e.0)
+            .unwrap_or_else(|_| remote_addr.ip());
+
+        if let Some(whitelist) = &client.whitelisted_ips
+            && !whitelist.iter().any(|cidr| cidr.contains(&ip))
+        {
+            tracing::warn!("Client {} is not whitelisted for {}", ip, client.name);
+            return StatusCode::FORBIDDEN.into_response();
+        };
+
+        if let Some(blacklist) = &client.blacklisted_ips
+            && blacklist.iter().any(|cidr| cidr.contains(&ip))
+        {
+            tracing::warn!("Client {} is blacklisted for {}", ip, client.name);
+            return StatusCode::FORBIDDEN.into_response();
+        }
 
         ws.on_upgrade(move |socket| handle_task_run_output(socket, client))
     }

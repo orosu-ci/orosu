@@ -1,7 +1,8 @@
 use crate::client::Client;
 use anyhow::Context;
+use cidr::IpCidr;
 use serde::{Deserialize, Serialize};
-use std::net::{IpAddr, SocketAddr};
+use std::net::SocketAddr;
 use std::path::PathBuf;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -33,9 +34,9 @@ pub struct Configuration {
     #[serde(rename = "log_level", default)]
     log_level: LogLevelConfiguration,
     #[serde(rename = "whitelisted_ips")]
-    ip_whitelist: Option<Vec<IpAddr>>,
+    pub ip_whitelist: Option<Vec<IpCidr>>,
     #[serde(rename = "blacklisted_ips")]
-    ip_blacklist: Option<Vec<IpAddr>>,
+    pub ip_blacklist: Option<Vec<IpCidr>>,
     #[serde(rename = "clients")]
     pub clients: Vec<Client>,
 }
@@ -53,6 +54,7 @@ impl Configuration {
 mod tests {
     use crate::configuration::ListenConfiguration::{Socket, Tcp};
     use crate::configuration::{Configuration, ListenConfiguration, LogLevelConfiguration};
+    use cidr::IpCidr;
     use std::fs::File;
     use std::net::IpAddr;
     use std::path::PathBuf;
@@ -126,19 +128,28 @@ mod tests {
         assert_eq!(configuration.clients[0].secret, "my-secret");
         assert_eq!(
             configuration.clients[0].whitelisted_ips,
-            Some(vec![IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1))])
+            Some(vec![
+                IpCidr::new(IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)), 32).unwrap()
+            ])
         );
         assert_eq!(
             configuration.clients[0].blacklisted_ips,
-            Some(vec![IpAddr::V4(std::net::Ipv4Addr::new(192, 168, 0, 1))])
+            Some(vec![
+                IpCidr::new(IpAddr::V4(std::net::Ipv4Addr::new(192, 168, 0, 1)), 32).unwrap()
+            ])
         );
         assert_eq!(
             configuration.ip_whitelist,
-            Some(vec![IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1))])
+            Some(vec![
+                IpCidr::new(IpAddr::V4(std::net::Ipv4Addr::new(127, 0, 0, 1)), 32).unwrap()
+            ])
         );
         assert_eq!(
             configuration.ip_blacklist,
-            Some(vec![IpAddr::V4(std::net::Ipv4Addr::new(192, 168, 0, 1))])
+            Some(vec![
+                IpCidr::new(IpAddr::V4(std::net::Ipv4Addr::new(192, 168, 0, 1)), 32).unwrap(),
+                IpCidr::new(IpAddr::V4(std::net::Ipv4Addr::new(1, 1, 1, 0)), 24).unwrap()
+            ])
         );
     }
 }
