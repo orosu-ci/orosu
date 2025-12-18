@@ -1,8 +1,8 @@
-use crate::model::api::ErrorCode;
-use crate::server::{AuthContext, AuthScope, ServerState, UserAuthContext, WorkerAuthContext};
+use crate::server::{AuthContext, AuthScope, ServerState, WorkerAuthContext};
 use axum::extract::FromRequestParts;
 use axum::http::header::AUTHORIZATION;
 use axum::http::request::Parts;
+use axum::http::StatusCode;
 use axum::Extension;
 use std::sync::Arc;
 
@@ -13,7 +13,7 @@ impl AuthScope {
 }
 
 impl FromRequestParts<Arc<ServerState>> for AuthContext {
-    type Rejection = ErrorCode;
+    type Rejection = StatusCode;
 
     async fn from_request_parts(
         parts: &mut Parts,
@@ -23,28 +23,28 @@ impl FromRequestParts<Arc<ServerState>> for AuthContext {
             .extensions
             .get::<AuthScope>()
             .cloned()
-            .ok_or(ErrorCode::Unauthorized)?;
+            .ok_or(StatusCode::UNAUTHORIZED)?;
 
         match scope {
             AuthScope::Worker => {
                 let Some(auth_header) = &parts.headers.get(AUTHORIZATION) else {
                     tracing::error!("Authorization header is missing");
-                    return Err(ErrorCode::Unauthorized);
+                    return Err(StatusCode::UNAUTHORIZED);
                 };
                 let auth_header_value =
-                    auth_header.to_str().map_err(|_| ErrorCode::Unauthorized)?;
+                    auth_header.to_str().map_err(|_| StatusCode::UNAUTHORIZED)?;
                 let parts = auth_header_value
                     .split_once(' ')
-                    .ok_or(ErrorCode::Unauthorized)?;
+                    .ok_or(StatusCode::UNAUTHORIZED)?;
                 if parts.0 != "Bearer" {
                     tracing::error!("Invalid authorization header format");
-                    return Err(ErrorCode::Unauthorized);
+                    return Err(StatusCode::UNAUTHORIZED);
                 }
                 let token = parts.1;
 
                 let Some(client) = state.clients.iter().find(|e| e.secret == token) else {
                     tracing::error!("Client with provided secret not found");
-                    return Err(ErrorCode::Unauthorized);
+                    return Err(StatusCode::UNAUTHORIZED);
                 };
 
                 Ok(AuthContext::Worker(WorkerAuthContext {
@@ -55,22 +55,8 @@ impl FromRequestParts<Arc<ServerState>> for AuthContext {
     }
 }
 
-impl FromRequestParts<Arc<ServerState>> for UserAuthContext {
-    type Rejection = ErrorCode;
-
-    async fn from_request_parts(
-        parts: &mut Parts,
-        state: &Arc<ServerState>,
-    ) -> Result<Self, Self::Rejection> {
-        let context = AuthContext::from_request_parts(parts, state).await?;
-        match context {
-            AuthContext::Worker(_) => Err(ErrorCode::Unauthorized),
-        }
-    }
-}
-
 impl FromRequestParts<Arc<ServerState>> for WorkerAuthContext {
-    type Rejection = ErrorCode;
+    type Rejection = StatusCode;
 
     async fn from_request_parts(
         parts: &mut Parts,

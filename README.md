@@ -10,7 +10,7 @@ Instead of configuring SSH keys, users, paths, and brittle scripts in every pipe
 
 The Idea
 
-CI systems are great at building, but terrible at delivering:
+CI systems are great at building but terrible at delivering:
 - SSH keys spread across pipelines
 - SFTP / rsync scripts copy-pasted everywhere
 - fragile permissions and paths
@@ -26,7 +26,7 @@ No direct SSH. No file juggling. No pipeline-specific hacks.
 ⸻
 
 What Orosu Is
-- A small agent running on your server
+- A little agent running on your server
 - A CLI used from CI
 - A contract between CI and the target machine
 

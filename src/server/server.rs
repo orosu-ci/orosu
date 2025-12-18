@@ -1,10 +1,10 @@
 use crate::client::Client;
 use crate::configuration::ListenConfiguration;
-use crate::model::api::ErrorCode;
 use crate::server::handler::TasksHandler;
 use crate::server::{AuthScope, Server, ServerState};
 use anyhow::Context;
 use axum::extract::{ConnectInfo, FromRequestParts, Request, State};
+use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
@@ -63,13 +63,13 @@ async fn whitelist_layer(
     match ClientIp::from_request_parts(&mut parts, &()).await {
         Ok(ip) => {
             if !whitelist.contains(&ip.0) {
-                return ErrorCode::Forbidden.into_response();
+                return StatusCode::FORBIDDEN.into_response();
             }
         }
         Err(_) => {
             let ip = remote_addr.ip();
             if !whitelist.contains(&ip) {
-                return ErrorCode::Forbidden.into_response();
+                return StatusCode::FORBIDDEN.into_response();
             }
         }
     }

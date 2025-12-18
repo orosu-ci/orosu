@@ -4,32 +4,27 @@ use crate::api::envelopes::{
 use crate::api::{ServerErrorResponse, ServerTaskNotification, StartTaskRequest, TaskLaunchStatus};
 use crate::client::Client;
 use crate::server::handler::TasksHandler;
-use crate::server::{AuthContext, ServerState};
+use crate::server::AuthContext;
 use crate::tasks::task::Task;
-use crate::tasks::{ActiveTask, TaskLaunchResult};
+use crate::tasks::TaskLaunchResult;
 use axum::extract::ws::{Message, WebSocket};
-use axum::extract::{State, WebSocketUpgrade};
+use axum::extract::WebSocketUpgrade;
 use axum::response::IntoResponse;
 use futures_util::{SinkExt, StreamExt};
-use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::timeout;
 
 impl TasksHandler {
-    pub async fn attach(
-        auth_context: AuthContext,
-        State(server_state): State<Arc<ServerState>>,
-        ws: WebSocketUpgrade,
-    ) -> impl IntoResponse {
+    pub async fn attach(auth_context: AuthContext, ws: WebSocketUpgrade) -> impl IntoResponse {
         let client = match auth_context {
             AuthContext::Worker(worker_auth_context) => worker_auth_context.client,
         };
 
-        ws.on_upgrade(move |socket| handle_task_run_output(socket, client, server_state))
+        ws.on_upgrade(move |socket| handle_task_run_output(socket, client))
     }
 }
 
-async fn handle_task_run_output(mut socket: WebSocket, client: Client, state: Arc<ServerState>) {
+async fn handle_task_run_output(mut socket: WebSocket, client: Client) {
     let Some(task_message_result) = socket.recv().await else {
         tracing::info!("Client disconnected");
         _ = socket.send(Message::Close(None)).await;
@@ -60,7 +55,6 @@ async fn handle_task_run_output(mut socket: WebSocket, client: Client, state: Ar
     let (mut sender, mut receiver) = socket.split();
 
     let run_id = start_task_message_payload.body.run_id;
-    let client_name = client.name;
     let arguments = start_task_message_payload.body.arguments;
 
     let script_name = start_task_message_payload.body.script_name;
