@@ -45,7 +45,7 @@ impl Configuration {
         let file = std::fs::File::open(path)
             .with_context(|| format!("Failed to open configuration file at {}", path.display()))?;
         let reader = std::io::BufReader::new(file);
-        Ok(serde_saphyr::from_reader(reader).with_context(|| "Failed to parse configuration")?)
+        serde_saphyr::from_reader(reader).with_context(|| "Failed to parse configuration")
     }
 }
 

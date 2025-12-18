@@ -24,22 +24,22 @@ pub enum ResponseEnvelope<T, E> {
     },
 }
 
-impl<T> Into<Bytes> for RequestEnvelope<T>
+impl<T> From<RequestEnvelope<T>> for Bytes
 where
     T: Serialize,
 {
-    fn into(self) -> Bytes {
-        serde_json::to_vec(&self).unwrap().into()
+    fn from(value: RequestEnvelope<T>) -> Self {
+        serde_json::to_vec(&value).unwrap().into()
     }
 }
 
-impl<T, E> Into<Bytes> for ResponseEnvelope<T, E>
+impl<T, E> From<ResponseEnvelope<T, E>> for Bytes
 where
     T: Serialize,
     E: Serialize,
 {
-    fn into(self) -> Bytes {
-        serde_json::to_vec(&self).unwrap().into()
+    fn from(value: ResponseEnvelope<T, E>) -> Self {
+        serde_json::to_vec(&value).unwrap().into()
     }
 }
 

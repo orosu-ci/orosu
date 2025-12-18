@@ -26,7 +26,7 @@ impl ApiClient {
             .context("Cannot create request")?;
         request.headers_mut().insert(
             AUTHORIZATION,
-            format!("Bearer {}", key)
+            format!("Bearer {key}")
                 .parse()
                 .context("Invalid header value")?,
         );
@@ -61,10 +61,7 @@ impl ApiClient {
         let response = response?;
 
         let Message::Binary(response_bytes) = response else {
-            anyhow::bail!(
-                "Server did not respond with a valid response, got {}",
-                response
-            )
+            anyhow::bail!("Server did not respond with a valid response, got {response}")
         };
 
         let response: TaskLaunchStatusResponseEnvelope = response_bytes.into();
@@ -115,11 +112,11 @@ impl ApiClient {
                     }
                 }
                 Message::Close(cause) => {
-                    tracing::info!("WebSocket closed: {:?}", cause);
+                    tracing::info!("WebSocket closed: {cause:?}");
                     break;
                 }
                 _ => {
-                    panic!("Unexpected message: {:?}", event);
+                    panic!("Unexpected message: {event:?}");
                 }
             }
         }
@@ -131,8 +128,8 @@ impl ApiClient {
 impl TaskOutput {
     fn print(&self) {
         match self {
-            TaskOutput::Stdout(line) => println!("{}", line),
-            TaskOutput::Stderr(line) => eprintln!("{}", line),
+            TaskOutput::Stdout(line) => println!("{line}"),
+            TaskOutput::Stderr(line) => eprintln!("{line}"),
         }
     }
 }

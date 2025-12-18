@@ -35,19 +35,19 @@ impl Task {
     fn append_output(tx: broadcast::Sender<Timestamped<TaskOutput>>, output: TaskOutput) {
         let event = Timestamped::now(output);
         if let Err(e) = tx.send(event) {
-            tracing::error!("Failed to send task output event: {}", e);
+            tracing::error!("Failed to send task output event: {e}");
         }
     }
 
     fn set_exit_code(tx: watch::Sender<Option<Timestamped<i32>>>, exit_code: i32) {
         let event = Timestamped::now(exit_code);
         if let Err(e) = tx.send(Some(event)) {
-            tracing::error!("Failed to send task exit code: {}", e);
+            tracing::error!("Failed to send task exit code: {e}");
         }
     }
 
     pub async fn run(&self, arguments: Vec<String>) -> anyhow::Result<TaskLaunchResult> {
-        let created_on = self.created_on.clone();
+        let created_on = self.created_on;
         let output_tx = self.output_tx.clone();
         let script = self.script.clone();
 
@@ -73,7 +73,7 @@ impl Task {
         let mut child = match command.spawn() {
             Ok(child) => child,
             Err(e) => {
-                Self::append_stderr(output_tx, format!("Failed to start script: {}", e));
+                Self::append_stderr(output_tx, format!("Failed to start script: {e}"));
                 Self::set_exit_code(self.exit_code_tx.clone(), 1);
                 return Err(e.into());
             }
@@ -117,7 +117,7 @@ impl Task {
                     Some(code) => code,
                 },
                 Err(e) => {
-                    Self::append_stderr(output_tx, format!("Command failed: {}", e));
+                    Self::append_stderr(output_tx, format!("Command failed: {e}"));
                     -1
                 }
             };
