@@ -35,18 +35,18 @@ impl TasksHandler {
             .map(|e| e.0)
             .unwrap_or_else(|_| remote_addr.ip());
 
-        if let Some(whitelist) = &client.whitelisted_ips {
-            if !whitelist.iter().any(|cidr| cidr.contains(&ip)) {
-                tracing::warn!("Client {} is not whitelisted for {}", ip, client.name);
-                return StatusCode::FORBIDDEN.into_response();
-            }
+        if let Some(whitelist) = &client.whitelisted_ips
+            && !whitelist.iter().any(|cidr| cidr.contains(&ip))
+        {
+            tracing::warn!("Client {} is not whitelisted for {}", ip, client.name);
+            return StatusCode::FORBIDDEN.into_response();
         };
 
-        if let Some(blacklist) = &client.blacklisted_ips {
-            if blacklist.iter().any(|cidr| cidr.contains(&ip)) {
-                tracing::warn!("Client {} is blacklisted for {}", ip, client.name);
-                return StatusCode::FORBIDDEN.into_response();
-            }
+        if let Some(blacklist) = &client.blacklisted_ips
+            && blacklist.iter().any(|cidr| cidr.contains(&ip))
+        {
+            tracing::warn!("Client {} is blacklisted for {}", ip, client.name);
+            return StatusCode::FORBIDDEN.into_response();
         }
 
         ws.on_upgrade(move |socket| handle_task_run_output(socket, client))

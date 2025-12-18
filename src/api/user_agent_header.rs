@@ -9,9 +9,9 @@ impl Default for UserAgentHeader {
     }
 }
 
-impl Into<HeaderValue> for UserAgentHeader {
-    fn into(self) -> HeaderValue {
-        format!("Orosu/{}", self.version).parse().unwrap()
+impl From<UserAgentHeader> for HeaderValue {
+    fn from(value: UserAgentHeader) -> Self {
+        format!("Orosu/{}", value.version).parse().unwrap()
     }
 }
 
