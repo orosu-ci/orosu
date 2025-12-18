@@ -1,6 +1,6 @@
 # This is an example config file
 
-# Listen address, can be a TCP address or a Unix socket
+# Listen address can be a TCP address or a Unix socket
 listen:
   tcp: "0.0.0.0:8081"
   # socket: "/tmp/mysocket"
@@ -19,16 +19,18 @@ blacklisted_ips:
 clients:
   - name: "my-client" # Name will be used in logs
     secret: "my-secret" # Secret is used to authenticate clients, this should be used in CI secrets
-    whitelisted_ips: # Optional list of IPs that are allowed to connect to this client, takes precedence over global whitelist
+    whitelisted_ips: # An optional list of IPs, which are allowed to connect to this client, takes precedence over the global whitelist
       - "127.0.0.1"
-    blacklisted_ips: # Optional list of IPs that are not allowed to connect to this client, takes precedence over global blacklist
+    blacklisted_ips: # An optional list of IPs, which are not allowed to connect to this client, takes precedence over the global blacklist
       - "192.168.0.1"
     scripts: # A list of scripts that can be executed by this client
       - name: "my-script" # Name will be used in CI to call the script
-        allowed_variables: # A list of variables that are expected to be sent by the CI job
-          - "MY_VAR"
         working_directory: "/tmp" # A working directory for the script
-        command: # A command that will be executed. A line with {{}} syntax will be replaced with the value of the variable
-          - "echo"
-          - "{{MY_VAR}}"
+        command:
+          - "echo" # A command that will be executed.
+      - name: "long-script"
+        working_directory: "./"
+        command:
+          - "sh"
+          - "long_script.sh"
 

@@ -1,56 +1,27 @@
-use crate::tasks::Tasks;
-use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation};
-use serde::{Deserialize, Serialize};
-use std::net::IpAddr;
+use crate::client::Client;
+use crate::configuration::ListenConfiguration;
+use crate::server::handler::TasksHandler;
+use anyhow::Context;
+use axum::extract::{ConnectInfo, FromRequestParts, Request, State};
+use axum::http::StatusCode;
+use axum::middleware::Next;
+use axum::response::{IntoResponse, Response};
+use axum::routing::get;
+use axum_client_ip::ClientIp;
+use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
-use uuid::Uuid;
+use tower_http::trace::TraceLayer;
 
 mod auth_scope;
 mod handler;
-mod server;
-
-#[derive(Debug, clap::Args)]
-#[group(skip)]
-pub struct Configuration {
-    #[arg(
-        long,
-        env = "LISTEN_PORT",
-        default_value_t = 8080,
-        help = "Port on which the dashboard will listen"
-    )]
-    pub listen_port: u16,
-    #[arg(
-        long,
-        env = "WHITELISTED_IPS",
-        help = "Comma separated list of IPs allowed to access the dashboard"
-    )]
-    pub whitelisted_ips: Option<Vec<IpAddr>>,
-    #[arg(long, env = "JWT_SECRET", help = "JWT secret")]
-    pub jwt_secret: String,
-    #[arg(long, env = "ADMIN_USERNAME", help = "Admin username")]
-    pub admin_username: String,
-    #[arg(long, env = "ADMIN_PASSWORD", help = "Admin password")]
-    pub admin_password: String,
-}
 
 pub struct ServerState {
-    admin_username: String,
-    admin_password: String,
-    jwt_decoding_key: DecodingKey,
-    jwt_encoding_key: EncodingKey,
-    validation: Validation,
-    tasks: Tasks,
+    clients: Vec<Client>,
 }
 
 pub struct Server {
-    configuration: Configuration,
+    listen: ListenConfiguration,
     state: Arc<ServerState>,
-}
-
-#[derive(Debug, Deserialize, Clone, Serialize)]
-pub struct WebAppAuthClaims {
-    pub username: UserName,
-    pub exp: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -58,20 +29,75 @@ pub enum AuthScope {
     Worker,
 }
 
-pub type UserName = String;
-
 #[derive(Clone, Debug)]
 pub struct WorkerAuthContext {
-    pub worker_id: Uuid,
-}
-
-#[derive(Clone, Debug)]
-pub struct UserAuthContext {
-    pub header: Header,
-    pub claims: WebAppAuthClaims,
+    pub client: Client,
 }
 
 #[derive(Clone, Debug)]
 pub enum AuthContext {
     Worker(WorkerAuthContext),
+}
+
+impl Server {
+    pub fn new(listen: ListenConfiguration, clients: Vec<Client>) -> Self {
+        let state = Arc::new(ServerState { clients });
+        Self { listen, state }
+    }
+
+    pub async fn serve(&self) -> anyhow::Result<()> {
+        let router = self.build_router();
+
+        match &self.listen {
+            ListenConfiguration::Tcp(address) => {
+                let listener = tokio::net::TcpListener::bind(address)
+                    .await
+                    .with_context(|| "Failed to bind to TCP address")?;
+                axum::serve(
+                    listener,
+                    router.into_make_service_with_connect_info::<SocketAddr>(),
+                )
+                .await?;
+            }
+
+            ListenConfiguration::Socket(path) => {
+                let listener = tokio::net::UnixListener::bind(path).with_context(|| {
+                    format!("Failed to bind to unix socket path {}", path.display())
+                })?;
+                axum::serve(listener, router).await?;
+            }
+        };
+        Ok(())
+    }
+
+    fn build_router(&self) -> axum::Router {
+        axum::Router::new()
+            .route("/", get(TasksHandler::attach))
+            .with_state(self.state.clone())
+            .layer(TraceLayer::new_for_http())
+            .layer(AuthScope::Worker.into_extension())
+    }
+}
+
+async fn whitelist_layer(
+    ConnectInfo(remote_addr): ConnectInfo<SocketAddr>,
+    State(whitelist): State<Vec<IpAddr>>,
+    request: Request,
+    next: Next,
+) -> Response {
+    let (mut parts, body) = request.into_parts();
+    match ClientIp::from_request_parts(&mut parts, &()).await {
+        Ok(ip) => {
+            if !whitelist.contains(&ip.0) {
+                return StatusCode::FORBIDDEN.into_response();
+            }
+        }
+        Err(_) => {
+            let ip = remote_addr.ip();
+            if !whitelist.contains(&ip) {
+                return StatusCode::FORBIDDEN.into_response();
+            }
+        }
+    }
+    next.run(Request::from_parts(parts, body)).await
 }

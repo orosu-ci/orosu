@@ -1,26 +1,25 @@
-mod configuration;
+mod arguments;
 
-use crate::configuration::Configuration;
+use crate::arguments::CliArguments;
 use clap::Parser;
-use nerdy_releaser_api::server;
-use nerdy_releaser_api::tasks::Tasks;
+use orosu::configuration::Configuration;
+use orosu::server;
 use server::Server;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenvy::dotenv()?;
 
+    let arguments = CliArguments::parse();
+
     tracing_subscriber::fmt()
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .compact()
         .init();
 
-    let configuration = Configuration::parse();
+    let configuration = Configuration::from_file(&arguments.config_file_path)?;
 
-    let server_configuration = configuration.server_configuration;
-    let tasks = Tasks::new();
-
-    let server = Server::new(server_configuration, tasks);
+    let server = Server::new(configuration.listen, configuration.clients);
 
     server.serve().await?;
 

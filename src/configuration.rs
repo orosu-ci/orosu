@@ -1,20 +1,24 @@
+use crate::client::Client;
+use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 
 #[derive(Debug, Serialize, Deserialize)]
-enum ListenConfiguration {
+pub enum ListenConfiguration {
     #[serde(rename = "tcp")]
     Tcp(SocketAddr),
+    #[cfg(unix)]
     #[serde(rename = "socket")]
     Socket(PathBuf),
 }
 
-#[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Default)]
 enum LogLevelConfiguration {
     #[serde(rename = "debug")]
     Debug,
     #[serde(rename = "info")]
+    #[default]
     Info,
     #[serde(rename = "warn")]
     Warn,
@@ -22,52 +26,30 @@ enum LogLevelConfiguration {
     Error,
 }
 
-impl Default for LogLevelConfiguration {
-    fn default() -> Self {
-        LogLevelConfiguration::Info
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize)]
-struct ScriptConfiguration {
-    #[serde(rename = "name")]
-    name: String,
-    #[serde(rename = "allowed_variables")]
-    allowed_variables: Vec<String>,
-    #[serde(rename = "working_directory")]
-    working_directory: PathBuf,
-    #[serde(rename = "command")]
-    command: Vec<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct ClientConfiguration {
-    #[serde(rename = "name")]
-    name: String,
-    #[serde(rename = "secret")]
-    secret: String,
-    #[serde(rename = "whitelisted_ips")]
-    whitelisted_ips: Option<Vec<IpAddr>>,
-    #[serde(rename = "blacklisted_ips")]
-    blacklisted_ips: Option<Vec<IpAddr>>,
-    #[serde(rename = "scripts")]
-    scripts: Vec<ScriptConfiguration>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Configuration {
+pub struct Configuration {
     #[serde(rename = "listen")]
-    listen: ListenConfiguration,
-    #[serde(rename = "log_level", default = "LogLevelConfiguration::default")]
+    pub listen: ListenConfiguration,
+    #[serde(rename = "log_level", default)]
     log_level: LogLevelConfiguration,
     #[serde(rename = "whitelisted_ips")]
     ip_whitelist: Option<Vec<IpAddr>>,
     #[serde(rename = "blacklisted_ips")]
     ip_blacklist: Option<Vec<IpAddr>>,
     #[serde(rename = "clients")]
-    clients: Vec<ClientConfiguration>,
+    pub clients: Vec<Client>,
 }
 
+impl Configuration {
+    pub fn from_file(path: &PathBuf) -> anyhow::Result<Self> {
+        let file = std::fs::File::open(path)
+            .with_context(|| format!("Failed to open configuration file at {}", path.display()))?;
+        let reader = std::io::BufReader::new(file);
+        serde_saphyr::from_reader(reader).with_context(|| "Failed to parse configuration")
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use crate::configuration::ListenConfiguration::{Socket, Tcp};
     use crate::configuration::{Configuration, ListenConfiguration, LogLevelConfiguration};
@@ -83,10 +65,7 @@ mod tests {
         let Tcp(addr) = configuration else {
             panic!("Expected Tcp configuration");
         };
-        assert_eq!(
-            addr.ip(),
-            std::net::IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0))
-        );
+        assert_eq!(addr.ip(), IpAddr::V4(std::net::Ipv4Addr::new(0, 0, 0, 0)));
         assert_eq!(addr.port(), 8081);
     }
 
@@ -100,7 +79,7 @@ mod tests {
         };
         assert_eq!(
             addr.ip(),
-            std::net::IpAddr::V6(std::net::Ipv6Addr::new(
+            IpAddr::V6(std::net::Ipv6Addr::new(
                 0xfc00, 0xdb20, 0x35b, 0x7399, 0, 0, 0, 0x5
             ))
         );
@@ -137,23 +116,13 @@ mod tests {
         assert_eq!(configuration.log_level, LogLevelConfiguration::Error);
         assert_eq!(configuration.clients.len(), 1);
         assert_eq!(configuration.clients[0].name, "my-client");
-        assert_eq!(configuration.clients[0].scripts.len(), 1);
+        assert_eq!(configuration.clients[0].scripts.len(), 2);
         assert_eq!(configuration.clients[0].scripts[0].name, "my-script");
-        assert_eq!(
-            configuration.clients[0].scripts[0].allowed_variables.len(),
-            1
-        );
-        assert_eq!(
-            configuration.clients[0].scripts[0].allowed_variables[0],
-            "MY_VAR"
-        );
         assert_eq!(
             configuration.clients[0].scripts[0].working_directory,
             PathBuf::from("/tmp")
         );
-        assert_eq!(configuration.clients[0].scripts[0].command.len(), 2);
         assert_eq!(configuration.clients[0].scripts[0].command[0], "echo");
-        assert_eq!(configuration.clients[0].scripts[0].command[1], "{{MY_VAR}}");
         assert_eq!(configuration.clients[0].secret, "my-secret");
         assert_eq!(
             configuration.clients[0].whitelisted_ips,

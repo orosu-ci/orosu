@@ -1,10 +1,9 @@
-use crate::model::api::ErrorCode;
-use crate::model::WorkerSecretKey;
-use crate::server::{AuthContext, AuthScope, ServerState, UserAuthContext, WorkerAuthContext};
+use crate::server::{AuthContext, AuthScope, ServerState, WorkerAuthContext};
+use axum::Extension;
 use axum::extract::FromRequestParts;
+use axum::http::StatusCode;
 use axum::http::header::AUTHORIZATION;
 use axum::http::request::Parts;
-use axum::Extension;
 use std::sync::Arc;
 
 impl AuthScope {
@@ -14,7 +13,7 @@ impl AuthScope {
 }
 
 impl FromRequestParts<Arc<ServerState>> for AuthContext {
-    type Rejection = ErrorCode;
+    type Rejection = StatusCode;
 
     async fn from_request_parts(
         parts: &mut Parts,
@@ -24,50 +23,40 @@ impl FromRequestParts<Arc<ServerState>> for AuthContext {
             .extensions
             .get::<AuthScope>()
             .cloned()
-            .ok_or(ErrorCode::Unauthorized)?;
+            .ok_or(StatusCode::UNAUTHORIZED)?;
 
         match scope {
             AuthScope::Worker => {
-                let auth_header = &parts.headers[AUTHORIZATION];
+                let Some(auth_header) = &parts.headers.get(AUTHORIZATION) else {
+                    tracing::error!("Authorization header is missing");
+                    return Err(StatusCode::UNAUTHORIZED);
+                };
                 let auth_header_value =
-                    auth_header.to_str().map_err(|_| ErrorCode::Unauthorized)?;
+                    auth_header.to_str().map_err(|_| StatusCode::UNAUTHORIZED)?;
                 let parts = auth_header_value
                     .split_once(' ')
-                    .ok_or(ErrorCode::Unauthorized)?;
+                    .ok_or(StatusCode::UNAUTHORIZED)?;
                 if parts.0 != "Bearer" {
-                    return Err(ErrorCode::Unauthorized);
+                    tracing::error!("Invalid authorization header format");
+                    return Err(StatusCode::UNAUTHORIZED);
                 }
-                let token = WorkerSecretKey::try_from(parts.1)
-                    .inspect_err(|e| {
-                        tracing::error!("Cannot parse worker secret key: {:?}", e);
-                    })
-                    .map_err(|_| ErrorCode::Unauthorized)?;
+                let token = parts.1;
 
-                todo!();
-                // Ok(AuthContext::Worker(WorkerAuthContext {
-                //     worker_id: id.into(),
-                // }))
+                let Some(client) = state.clients.iter().find(|e| e.secret == token) else {
+                    tracing::error!("Client with provided secret not found");
+                    return Err(StatusCode::UNAUTHORIZED);
+                };
+
+                Ok(AuthContext::Worker(WorkerAuthContext {
+                    client: client.clone(),
+                }))
             }
         }
     }
 }
 
-impl FromRequestParts<Arc<ServerState>> for UserAuthContext {
-    type Rejection = ErrorCode;
-
-    async fn from_request_parts(
-        parts: &mut Parts,
-        state: &Arc<ServerState>,
-    ) -> Result<Self, Self::Rejection> {
-        let context = AuthContext::from_request_parts(parts, state).await?;
-        match context {
-            AuthContext::Worker(_) => Err(ErrorCode::Unauthorized),
-        }
-    }
-}
-
 impl FromRequestParts<Arc<ServerState>> for WorkerAuthContext {
-    type Rejection = ErrorCode;
+    type Rejection = StatusCode;
 
     async fn from_request_parts(
         parts: &mut Parts,
