@@ -1,9 +1,10 @@
+use crate::client::Client;
+use crate::configuration::ListenConfiguration;
 use crate::tasks::Tasks;
-use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation};
+use jsonwebtoken::Header;
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 use std::sync::Arc;
-use uuid::Uuid;
 
 mod auth_scope;
 mod handler;
@@ -34,16 +35,12 @@ pub struct Configuration {
 }
 
 pub struct ServerState {
-    admin_username: String,
-    admin_password: String,
-    jwt_decoding_key: DecodingKey,
-    jwt_encoding_key: EncodingKey,
-    validation: Validation,
     tasks: Tasks,
+    clients: Vec<Client>,
 }
 
 pub struct Server {
-    configuration: Configuration,
+    listen: ListenConfiguration,
     state: Arc<ServerState>,
 }
 
@@ -62,7 +59,7 @@ pub type UserName = String;
 
 #[derive(Clone, Debug)]
 pub struct WorkerAuthContext {
-    pub worker_id: Uuid,
+    pub client: Client,
 }
 
 #[derive(Clone, Debug)]

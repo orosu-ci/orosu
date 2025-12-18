@@ -1,57 +1,53 @@
+use crate::client::Client;
+use crate::configuration::ListenConfiguration;
 use crate::model::api::ErrorCode;
 use crate::server::handler::TasksHandler;
-use crate::server::{AuthScope, Configuration, Server, ServerState};
+use crate::server::{AuthScope, Server, ServerState};
 use crate::tasks::Tasks;
+use anyhow::Context;
 use axum::extract::{ConnectInfo, FromRequestParts, Request, State};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use axum_client_ip::ClientIp;
-use jsonwebtoken::{DecodingKey, EncodingKey, Validation};
 use std::net::{IpAddr, SocketAddr};
-use std::str::FromStr;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
 
 impl Server {
-    pub fn new(configuration: Configuration, tasks: Tasks) -> Self {
-        let jwt_decoding_key =
-            DecodingKey::from_base64_secret(configuration.jwt_secret.as_str()).unwrap();
-        let jwt_encoding_key =
-            EncodingKey::from_base64_secret(configuration.jwt_secret.as_str()).unwrap();
-        let validation = Validation::default();
-        let state = Arc::new(ServerState {
-            admin_username: configuration.admin_username.clone(),
-            admin_password: configuration.admin_password.clone(),
-            jwt_decoding_key,
-            jwt_encoding_key,
-            validation,
-            tasks,
-        });
-        Self {
-            configuration,
-            state,
-        }
+    pub fn new(listen: ListenConfiguration, clients: Vec<Client>, tasks: Tasks) -> Self {
+        let state = Arc::new(ServerState { tasks, clients });
+        Self { listen, state }
     }
 
     pub async fn serve(&self) -> anyhow::Result<()> {
         let router = self.build_router();
 
-        let addr =
-            SocketAddr::from_str(format!("0.0.0.0:{}", self.configuration.listen_port).as_str())?;
-        let listener = tokio::net::TcpListener::bind(addr).await?;
+        match &self.listen {
+            ListenConfiguration::Tcp(address) => {
+                let listener = tokio::net::TcpListener::bind(address)
+                    .await
+                    .with_context(|| "Failed to bind to TCP address")?;
+                axum::serve(
+                    listener,
+                    router.into_make_service_with_connect_info::<SocketAddr>(),
+                )
+                .await?;
+            }
 
-        axum::serve(
-            listener,
-            router.into_make_service_with_connect_info::<SocketAddr>(),
-        )
-        .await?;
+            ListenConfiguration::Socket(path) => {
+                let listener = tokio::net::UnixListener::bind(path).with_context(|| {
+                    format!("Failed to bind to unix socket path {}", path.display())
+                })?;
+                axum::serve(listener, router).await?;
+            }
+        };
         Ok(())
     }
 
     fn build_router(&self) -> axum::Router {
         axum::Router::new()
-            .route("/api/worker/tasks/manage", get(TasksHandler::attach))
+            .route("/", get(TasksHandler::attach))
             .with_state(self.state.clone())
             .layer(TraceLayer::new_for_http())
             .layer(AuthScope::Worker.into_extension())

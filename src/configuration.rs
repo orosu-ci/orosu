@@ -1,11 +1,14 @@
+use crate::client::Client;
+use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, SocketAddr};
 use std::path::PathBuf;
 
 #[derive(Debug, Serialize, Deserialize)]
-enum ListenConfiguration {
+pub enum ListenConfiguration {
     #[serde(rename = "tcp")]
     Tcp(SocketAddr),
+    #[cfg(unix)]
     #[serde(rename = "socket")]
     Socket(PathBuf),
 }
@@ -24,35 +27,9 @@ enum LogLevelConfiguration {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-struct ScriptConfiguration {
-    #[serde(rename = "name")]
-    name: String,
-    #[serde(rename = "allowed_variables")]
-    allowed_variables: Vec<String>,
-    #[serde(rename = "working_directory")]
-    working_directory: PathBuf,
-    #[serde(rename = "command")]
-    command: Vec<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct ClientConfiguration {
-    #[serde(rename = "name")]
-    name: String,
-    #[serde(rename = "secret")]
-    secret: String,
-    #[serde(rename = "whitelisted_ips")]
-    whitelisted_ips: Option<Vec<IpAddr>>,
-    #[serde(rename = "blacklisted_ips")]
-    blacklisted_ips: Option<Vec<IpAddr>>,
-    #[serde(rename = "scripts")]
-    scripts: Vec<ScriptConfiguration>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Configuration {
+pub struct Configuration {
     #[serde(rename = "listen")]
-    listen: ListenConfiguration,
+    pub listen: ListenConfiguration,
     #[serde(rename = "log_level", default)]
     log_level: LogLevelConfiguration,
     #[serde(rename = "whitelisted_ips")]
@@ -60,7 +37,16 @@ struct Configuration {
     #[serde(rename = "blacklisted_ips")]
     ip_blacklist: Option<Vec<IpAddr>>,
     #[serde(rename = "clients")]
-    clients: Vec<ClientConfiguration>,
+    pub clients: Vec<Client>,
+}
+
+impl Configuration {
+    pub fn from_file(path: &PathBuf) -> anyhow::Result<Self> {
+        let file = std::fs::File::open(path)
+            .with_context(|| format!("Failed to open configuration file at {}", path.display()))?;
+        let reader = std::io::BufReader::new(file);
+        Ok(serde_saphyr::from_reader(reader).with_context(|| "Failed to parse configuration")?)
+    }
 }
 
 #[cfg(test)]
@@ -144,9 +130,7 @@ mod tests {
             configuration.clients[0].scripts[0].working_directory,
             PathBuf::from("/tmp")
         );
-        assert_eq!(configuration.clients[0].scripts[0].command.len(), 2);
-        assert_eq!(configuration.clients[0].scripts[0].command[0], "echo");
-        assert_eq!(configuration.clients[0].scripts[0].command[1], "{{MY_VAR}}");
+        assert_eq!(configuration.clients[0].scripts[0].command, "echo \"Hello World!\"");
         assert_eq!(configuration.clients[0].secret, "my-secret");
         assert_eq!(
             configuration.clients[0].whitelisted_ips,

@@ -1,10 +1,18 @@
-use crate::model::api::{ErrorCode, ResponsePayload, TaskResponsePayload};
-use crate::server::handler::ws::new_task::NewTaskWebSocketHandler;
+use crate::api::envelopes::{
+    RequestEnvelope, TaskEventResponseEnvelope, TaskLaunchStatusResponseEnvelope,
+};
+use crate::api::{ServerErrorResponse, ServerTaskNotification, StartTaskRequest, TaskLaunchStatus};
+use crate::client::Client;
 use crate::server::handler::TasksHandler;
 use crate::server::{AuthContext, ServerState};
+use crate::tasks::TaskLaunchResult;
+use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{State, WebSocketUpgrade};
 use axum::response::IntoResponse;
+use futures_util::{SinkExt, StreamExt};
 use std::sync::Arc;
+use std::time::Duration;
+use tokio::time::timeout;
 
 impl TasksHandler {
     pub async fn attach(
@@ -12,14 +20,185 @@ impl TasksHandler {
         State(server_state): State<Arc<ServerState>>,
         ws: WebSocketUpgrade,
     ) -> impl IntoResponse {
-        match auth_context {
-            AuthContext::Worker(worker_auth_context) => {
-                tracing::info!("Worker {} logged in", worker_auth_context.worker_id)
+        let client = match auth_context {
+            AuthContext::Worker(worker_auth_context) => worker_auth_context.client,
+        };
+
+        ws.on_upgrade(move |socket| handle_task_run_output(socket, client, server_state))
+    }
+}
+
+async fn handle_task_run_output(mut socket: WebSocket, client: Client, state: Arc<ServerState>) {
+    let Some(task_message_result) = socket.recv().await else {
+        tracing::info!("Client disconnected");
+        _ = socket.send(Message::Close(None)).await;
+        return;
+    };
+    let Ok(task_message) = task_message_result else {
+        tracing::error!("Cannot receive task message");
+        _ = socket.send(Message::Close(None)).await;
+        return;
+    };
+
+    let Message::Binary(start_task_message) = task_message else {
+        tracing::error!("Cannot deserialize task message");
+        _ = socket.send(Message::Close(None)).await;
+        return;
+    };
+
+    let Ok(start_task_message_payload) =
+        serde_json::from_slice::<RequestEnvelope<StartTaskRequest>>(&start_task_message)
+    else {
+        tracing::error!("Cannot deserialize task message from bytes");
+        _ = socket.send(Message::Close(None)).await;
+        return;
+    };
+
+    tracing::info!("Received task message: {:?}", start_task_message_payload);
+
+    let (mut sender, mut receiver) = socket.split();
+
+    let run_id = start_task_message_payload.body.run_id;
+    let client_name = client.name;
+    let arguments = start_task_message_payload.body.arguments;
+
+    let script_name = start_task_message_payload.body.script_name;
+    let script = client.scripts.iter().find(|e| e.name == script_name);
+
+    let Some(script) = script else {
+        tracing::error!("Script {} not found", script_name);
+        let error_message = TaskLaunchStatusResponseEnvelope::Failure {
+            id: start_task_message_payload.id,
+            error: ServerErrorResponse::ScriptNotFound,
+        };
+        _ = sender.send(Message::Binary(error_message.into())).await;
+        _ = sender.send(Message::Close(None)).await;
+        return;
+    };
+
+    let tasks = &state.tasks;
+
+    let task_launch_result = match tasks
+        .get_or_start(run_id, client_name, script.clone(), arguments)
+        .await
+    {
+        Ok(task) => task,
+        Err(e) => {
+            tracing::error!("Unable to launch script {}: {:?}", script_name, e);
+            let error_message = TaskLaunchStatusResponseEnvelope::Failure {
+                id: start_task_message_payload.id,
+                error: ServerErrorResponse::CannotLaunchScript,
+            };
+            _ = sender.send(Message::Binary(error_message.into())).await;
+            _ = sender.send(Message::Close(None)).await;
+            return;
+        }
+    };
+
+    match task_launch_result {
+        TaskLaunchResult::Created {
+            created_on,
+            output_tx,
+            handler,
+        } => {
+            let created_message = TaskLaunchStatusResponseEnvelope::Success {
+                id: start_task_message_payload.id,
+                body: TaskLaunchStatus::Launched {
+                    started_on: created_on,
+                },
+            };
+            _ = sender.send(Message::Binary(created_message.into())).await;
+
+            tracing::info!("Starting task {} for script {}", run_id, script_name);
+
+            let mut rx = output_tx.subscribe();
+
+            let mut handler_fuse = handler;
+            let exit_code = loop {
+                tokio::select! {
+                    maybe_event = rx.recv() => {
+                        match maybe_event {
+                            Ok(event) => {
+                                tracing::info!("Task event: {:?}", event);
+                                let message = TaskEventResponseEnvelope::Success {
+                                    id: start_task_message_payload.id,
+                                    body: ServerTaskNotification::Output(event),
+                                };
+                                if let Err(e) = sender.send(Message::Binary(message.into())).await {
+                                    tracing::error!("Cannot send real-time event: {:?}", e);
+                                    break None;
+                                };
+                            }
+                            Err(tokio::sync::broadcast::error::RecvError::Lagged(count)) => {
+                                tracing::warn!("Receiver lagged by {} messages", count);
+                            }
+                            Err(tokio::sync::broadcast::error::RecvError::Closed) => {
+                                break None;
+                            }
+                        }
+                    }
+                    res = &mut handler_fuse => break Some(res.unwrap()),
+                }
+            };
+            let Some(exit_code) = exit_code else {
+                tracing::info!("Task {} was not awaited to be finished", run_id);
+                return;
+            };
+            tracing::info!("Task {} has finished with {} exit code", run_id, exit_code);
+            let message = TaskEventResponseEnvelope::Success {
+                id: start_task_message_payload.id,
+                body: ServerTaskNotification::ExitCode(exit_code),
+            };
+            if let Err(e) = sender.send(Message::Binary(message.into())).await {
+                tracing::error!("Cannot send exit-code event: {:?}", e);
+            };
+        }
+        TaskLaunchResult::Joined { .. } => {}
+        TaskLaunchResult::Finished { .. } => {
+            tracing::info!(
+                "Task {} for script {} was already finished",
+                run_id,
+                script_name
+            );
+            // for event in task.events {
+            //     sender
+            //         .send(Message::Text(serde_json::to_string(&event).unwrap().into()))
+            //         .await
+            //         .unwrap();
+            // }
+        }
+    }
+
+    if let Err(e) = sender.send(Message::Close(None)).await {
+        tracing::error!("Cannot send close message: {:?}", e);
+    };
+
+    tracing::info!("Send close message");
+
+    let wait_for_close = async {
+        while let Some(msg) = receiver.next().await {
+            match msg {
+                Ok(Message::Close(cause)) => {
+                    tracing::info!("Client disconnected: {:?}", cause);
+                    return;
+                }
+                Ok(msg) => {
+                    tracing::info!("Received message: {:?}", msg);
+                }
+                Err(e) => {
+                    tracing::error!("Cannot receive message: {:?}", e);
+                    return;
+                }
             }
         }
 
-        ws.on_upgrade(move |socket| {
-            NewTaskWebSocketHandler::handle_task_run_output(socket, server_state)
-        })
+        tracing::info!("Client disconnected");
+    };
+
+    if timeout(Duration::from_secs(3), wait_for_close)
+        .await
+        .is_err()
+    {
+        tracing::warn!("Client did not close connection in time");
     }
 }

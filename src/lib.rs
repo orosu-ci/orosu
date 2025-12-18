@@ -1,5 +1,9 @@
+extern crate alloc;
+
+pub mod api;
+mod client;
+pub mod configuration;
 pub mod model;
-pub mod scripts;
+mod script;
 pub mod server;
 pub mod tasks;
-mod configuration;

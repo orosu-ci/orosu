@@ -28,7 +28,5 @@ clients:
         allowed_variables: # A list of variables that are expected to be sent by the CI job
           - "MY_VAR"
         working_directory: "/tmp" # A working directory for the script
-        command: # A command that will be executed. A line with {{}} syntax will be replaced with the value of the variable
-          - "echo"
-          - "{{MY_VAR}}"
+        command: "echo" # A command that will be executed.
 

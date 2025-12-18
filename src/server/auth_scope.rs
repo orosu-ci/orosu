@@ -1,5 +1,4 @@
 use crate::model::api::ErrorCode;
-use crate::model::WorkerSecretKey;
 use crate::server::{AuthContext, AuthScope, ServerState, UserAuthContext, WorkerAuthContext};
 use axum::extract::FromRequestParts;
 use axum::http::header::AUTHORIZATION;
@@ -28,25 +27,29 @@ impl FromRequestParts<Arc<ServerState>> for AuthContext {
 
         match scope {
             AuthScope::Worker => {
-                let auth_header = &parts.headers[AUTHORIZATION];
+                let Some(auth_header) = &parts.headers.get(AUTHORIZATION) else {
+                    tracing::error!("Authorization header is missing");
+                    return Err(ErrorCode::Unauthorized);
+                };
                 let auth_header_value =
                     auth_header.to_str().map_err(|_| ErrorCode::Unauthorized)?;
                 let parts = auth_header_value
                     .split_once(' ')
                     .ok_or(ErrorCode::Unauthorized)?;
                 if parts.0 != "Bearer" {
+                    tracing::error!("Invalid authorization header format");
                     return Err(ErrorCode::Unauthorized);
                 }
-                let token = WorkerSecretKey::try_from(parts.1)
-                    .inspect_err(|e| {
-                        tracing::error!("Cannot parse worker secret key: {:?}", e);
-                    })
-                    .map_err(|_| ErrorCode::Unauthorized)?;
+                let token = parts.1;
 
-                todo!();
-                // Ok(AuthContext::Worker(WorkerAuthContext {
-                //     worker_id: id.into(),
-                // }))
+                let Some(client) = state.clients.iter().find(|e| e.secret == token) else {
+                    tracing::error!("Client with provided secret not found");
+                    return Err(ErrorCode::Unauthorized);
+                };
+
+                Ok(AuthContext::Worker(WorkerAuthContext {
+                    client: client.clone(),
+                }))
             }
         }
     }
