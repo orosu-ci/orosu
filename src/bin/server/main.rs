@@ -19,7 +19,12 @@ async fn main() -> anyhow::Result<()> {
 
     let configuration = Configuration::from_file(&arguments.config_file_path)?;
 
-    let server = Server::new(configuration.listen, configuration.clients);
+    let server = Server::new(
+        configuration.listen,
+        configuration.ip_whitelist,
+        configuration.ip_blacklist,
+        configuration.clients,
+    );
 
     server.serve().await?;
 

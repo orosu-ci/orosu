@@ -4,11 +4,13 @@ use crate::server::handler::TasksHandler;
 use anyhow::Context;
 use axum::extract::{ConnectInfo, FromRequestParts, Request, State};
 use axum::http::StatusCode;
+use axum::middleware;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use axum::routing::get;
-use axum_client_ip::ClientIp;
-use std::net::{IpAddr, SocketAddr};
+use axum_client_ip::{ClientIp, ClientIpSource};
+use cidr::IpCidr;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use tower_http::trace::TraceLayer;
 
@@ -22,6 +24,8 @@ pub struct ServerState {
 pub struct Server {
     listen: ListenConfiguration,
     state: Arc<ServerState>,
+    whitelist: Option<Vec<IpCidr>>,
+    blacklist: Option<Vec<IpCidr>>,
 }
 
 #[derive(Clone, Debug)]
@@ -40,9 +44,19 @@ pub enum AuthContext {
 }
 
 impl Server {
-    pub fn new(listen: ListenConfiguration, clients: Vec<Client>) -> Self {
+    pub fn new(
+        listen: ListenConfiguration,
+        whitelist: Option<Vec<IpCidr>>,
+        blacklist: Option<Vec<IpCidr>>,
+        clients: Vec<Client>,
+    ) -> Self {
         let state = Arc::new(ServerState { clients });
-        Self { listen, state }
+        Self {
+            listen,
+            state,
+            whitelist,
+            blacklist,
+        }
     }
 
     pub async fn serve(&self) -> anyhow::Result<()> {
@@ -76,28 +90,54 @@ impl Server {
             .with_state(self.state.clone())
             .layer(TraceLayer::new_for_http())
             .layer(AuthScope::Worker.into_extension())
+            .layer(middleware::from_fn_with_state(
+                self.whitelist.clone(),
+                whitelist_layer,
+            ))
+            .layer(middleware::from_fn_with_state(
+                self.blacklist.clone(),
+                blacklist_layer,
+            ))
+            .layer(ClientIpSource::RightmostXForwardedFor.into_extension())
     }
+}
+
+async fn blacklist_layer(
+    ConnectInfo(remote_addr): ConnectInfo<SocketAddr>,
+    State(blacklist): State<Option<Vec<IpCidr>>>,
+    request: Request,
+    next: Next,
+) -> Response {
+    let Some(blacklist) = blacklist else {
+        return next.run(request).await;
+    };
+    let (mut parts, body) = request.into_parts();
+    let ip = ClientIp::from_request_parts(&mut parts, &())
+        .await
+        .map(|e| e.0)
+        .unwrap_or_else(|_| remote_addr.ip());
+    if blacklist.iter().any(|cidr| cidr.contains(&ip)) {
+        return StatusCode::FORBIDDEN.into_response();
+    }
+    next.run(Request::from_parts(parts, body)).await
 }
 
 async fn whitelist_layer(
     ConnectInfo(remote_addr): ConnectInfo<SocketAddr>,
-    State(whitelist): State<Vec<IpAddr>>,
+    State(whitelist): State<Option<Vec<IpCidr>>>,
     request: Request,
     next: Next,
 ) -> Response {
+    let Some(whitelist) = whitelist else {
+        return next.run(request).await;
+    };
     let (mut parts, body) = request.into_parts();
-    match ClientIp::from_request_parts(&mut parts, &()).await {
-        Ok(ip) => {
-            if !whitelist.contains(&ip.0) {
-                return StatusCode::FORBIDDEN.into_response();
-            }
-        }
-        Err(_) => {
-            let ip = remote_addr.ip();
-            if !whitelist.contains(&ip) {
-                return StatusCode::FORBIDDEN.into_response();
-            }
-        }
+    let ip = ClientIp::from_request_parts(&mut parts, &())
+        .await
+        .map(|e| e.0)
+        .unwrap_or_else(|_| remote_addr.ip());
+    if !whitelist.iter().any(|cidr| cidr.contains(&ip)) {
+        return StatusCode::FORBIDDEN.into_response();
     }
     next.run(Request::from_parts(parts, body)).await
 }

@@ -1,6 +1,6 @@
 use crate::script::Script;
+use cidr::IpCidr;
 use serde::{Deserialize, Serialize};
-use std::net::IpAddr;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Client {
@@ -9,9 +9,9 @@ pub struct Client {
     #[serde(rename = "secret")]
     pub(crate) secret: String,
     #[serde(rename = "whitelisted_ips")]
-    pub(crate) whitelisted_ips: Option<Vec<IpAddr>>,
+    pub(crate) whitelisted_ips: Option<Vec<IpCidr>>,
     #[serde(rename = "blacklisted_ips")]
-    pub(crate) blacklisted_ips: Option<Vec<IpAddr>>,
+    pub(crate) blacklisted_ips: Option<Vec<IpCidr>>,
     #[serde(rename = "scripts")]
     pub(crate) scripts: Vec<Script>,
 }
