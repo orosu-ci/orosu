@@ -151,8 +151,6 @@ jobs:
       - name: Import GPG key
         run: |
           echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
-          KEY_GRIP=$(gpg --with-keygrip --list-secret-keys | grep "Keygrip" | head -1 | awk '{print $3}')
-          echo "${{ secrets.GPG_PASSPHRASE }}" | /usr/lib/gnupg/gpg-preset-passphrase --preset "$KEY_GRIP"
 
 
       - name: Setup reprepro configuration
@@ -187,7 +185,7 @@ jobs:
             reprepro includedeb stable "$deb"
           done
           
-          reprepro list stable
+          echo ${{ secrets.REPREPRO_PASSPHRASE }} | reprepro --ask-passphrase list stable
 
       - name: Export public GPG key
         run: |
