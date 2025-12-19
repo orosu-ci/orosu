@@ -77,10 +77,9 @@ impl Task {
                             .map_err(|e| {
                                 std::io::Error::new(std::io::ErrorKind::PermissionDenied, e)
                             })?;
-                        nix::unistd::setuid(nix::unistd::Uid::from_raw(user.uid()))
-                            .map_err(|e| {
-                                std::io::Error::new(std::io::ErrorKind::PermissionDenied, e)
-                            })?;
+                        nix::unistd::setuid(nix::unistd::Uid::from_raw(user.uid())).map_err(
+                            |e| std::io::Error::new(std::io::ErrorKind::PermissionDenied, e),
+                        )?;
                         Ok(())
                     });
                 }
