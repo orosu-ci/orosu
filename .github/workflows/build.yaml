@@ -152,8 +152,8 @@ jobs:
           cd action
           mkdir -p bin
           rm -rf bin/*
-          cp artifacts/orosu-client-amd64/orosu-client-linux-amd64 bin/
-          cp artifacts/orosu-client-arm64/orosu-client-linux-arm64 bin/
+          cp ../artifacts/orosu-client-amd64/orosu-client-linux-amd64 bin/
+          cp ../artifacts/orosu-client-arm64/orosu-client-linux-arm64 bin/
 
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
