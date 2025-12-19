@@ -80,21 +80,21 @@ jobs:
 
       - name: Build DEB package
         run: |
-          cargo deb --no-build --target ${{ matrix.target }} --variant ${{ matrix.arch }}
+          DEB_PATH=$(cargo deb --no-build --target ${{ matrix.target }} --variant ${{ matrix.arch }})
+          echo "deb_path=${DEB_PATH}" >> $GITHUB_OUTPUT
+          echo "Built package: ${DEB_PATH}"
 
       - name: Get package version
         id: version
         run: |
           VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          DEB_FILE="${{ env.PACKAGE_NAME }}_${VERSION}_${{ matrix.arch }}.deb"
-          echo "deb_file=${DEB_FILE}" >> $GITHUB_OUTPUT
 
       - name: Upload DEB artifact
         uses: actions/upload-artifact@v4
         with:
           name: deb-${{ matrix.arch }}
-          path: target/${{ matrix.target }}/debian/${{ steps.version.outputs.deb_file }}
+          path: ${{ steps.build_deb.outputs.deb_path }}
           retention-days: 90
 
   publish-repository:
