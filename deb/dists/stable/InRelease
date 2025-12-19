@@ -1,3 +1,6 @@
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA512
+
 Origin: orosu.dev
 Label: orosu.dev
 Suite: stable
@@ -21,3 +24,10 @@ SHA256:
  bd452adbf9d0f21ac91568b6c2ac66d2376b819bcaa3b7a940be7cbefb0c7096       0 binary-amd64/Packages.gz
  7201c341ebf87d65c63fea1406cf7c2fc841ec0a444e47c1f80d0b15b2a3acd4       0 binary-arm64/Packages
  fba6e376a00a7068295210ca1bcb1f01af4b6175322d60f464a811425bdc5271       0 binary-arm64/Packages.gz
+-----BEGIN PGP SIGNATURE-----
+
+iHUEARYKAB0WIQQe714TKTgoHwDlLNQic5rfK7/ZnQUCaUVl/QAKCRAic5rfK7/Z
+nWcxAP4xrwyb8OkqVHIawAbssin7IsgubmgGFpH4yIcf5sJg5gEArKuntTnZXRz9
+kw1E4heZIhZVJpgERKTu2dhGYIoLCwg=
+=PbcY
+-----END PGP SIGNATURE-----
