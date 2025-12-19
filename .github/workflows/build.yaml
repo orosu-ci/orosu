@@ -90,6 +90,13 @@ jobs:
           VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
+      - name: Upload client binaries artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: orosu-client-${{ matrix.arch }}
+          path: target/release/orosu-client
+          retention-days: 90
+
       - name: Upload DEB artifact
         uses: actions/upload-artifact@v4
         with:
@@ -112,17 +119,24 @@ jobs:
           VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
-      - name: Download all DEB packages
+      - name: Download all packages
         uses: actions/download-artifact@v4
         with:
-          path: debs/
+          path: artifacts/
+
+      - name: Rename client binaries
+        run: |
+          mv artifacts/orosu-client-amd64/orosu-client artifacts/orosu-client-amd64/orosu-client-linux-amd64
+          mv artifacts/orosu-client-arm64/orosu-client artifacts/orosu-client-arm64/orosu-client-linux-arm64
 
       - name: Upload DEB packages to release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            debs/deb-amd64/*.deb
-            debs/deb-arm64/*.deb
+            artifacts/orosu-client-amd64/orosu-client-linux-amd64
+            artifacts/orosu-client-arm64/orosu-client-linux-arm64
+            artifacts/deb-amd64/*.deb
+            artifacts/deb-arm64/*.deb
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
