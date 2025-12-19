@@ -185,7 +185,7 @@ jobs:
             reprepro includedeb stable "$deb"
           done
           
-          echo ${{ secrets.REPREPRO_PASSPHRASE }} | reprepro --ask-passphrase list stable
+          echo ${{ secrets.GPG_PASSPHRASE }} | reprepro --ask-passphrase list stable
 
       - name: Export public GPG key
         run: |
