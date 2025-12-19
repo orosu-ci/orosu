@@ -156,8 +156,8 @@ jobs:
 
       - name: Copy DEB packages to repository
         run: |
-          cp debs/deb-amd64/*.deb gh-pages/deb/pool/main/
-          cp debs/deb-arm64/*.deb gh-pages/deb/pool/main/
+          cp artifacts/deb-amd64/*.deb gh-pages/deb/pool/main/
+          cp artifacts/deb-arm64/*.deb gh-pages/deb/pool/main/
 
       - name: Install dpkg-dev for repository generation
         run: sudo apt-get update && sudo apt-get install -y dpkg-dev apt-utils
@@ -171,7 +171,7 @@ jobs:
           cd gh-pages
           mkdir -p deb/pool/main
           mkdir -p deb/dists/stable/main/binary-{amd64,arm64}
-          cp ../debs/deb-*/*.deb deb/pool/main/
+          cp ../artifacts/deb-*/*.deb deb/pool/main/
 
 
       - name: Generate Packages and Release
