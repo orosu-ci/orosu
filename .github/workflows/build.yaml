@@ -146,46 +146,48 @@ jobs:
           cp debs/deb-arm64/*.deb gh-pages/deb/pool/main/
 
       - name: Install dpkg-dev for repository generation
-        run: sudo apt-get update && sudo apt-get install -y gpg reprepro
+        run: sudo apt-get update && sudo apt-get install -y dpkg-dev apt-utils
 
       - name: Import GPG key
         run: |
           echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
 
-
-      - name: Setup reprepro configuration
+      - name: Setup repository structure
         run: |
-          cd gh-pages/deb
-          mkdir -p conf
-          
-          KEY_ID=$(gpg --list-secret-keys --keyid-format LONG | grep sec | awk '{print $2}' | cut -d'/' -f2 | head -1)
-          echo "Signing with key: $KEY_ID"
-          
-          cat > conf/distributions << EOF
-          Origin: orosu.dev
-          Label: orosu.dev
-          Codename: stable
-          Architectures: amd64 arm64
-          Components: main
-          Description: Orosu DEB Repository
-          SignWith: $KEY_ID
-          EOF
-          
-          cat > conf/options << EOF
-          verbose
-          basedir .
-          EOF
+          cd gh-pages
+          mkdir -p deb/pool/main
+          mkdir -p deb/dists/stable/main/binary-{amd64,arm64}
+          cp ../debs/deb-*/*.deb deb/pool/main/
 
-      - name: Build repository with reprepro
+
+      - name: Generate Packages and Release
         run: |
           cd gh-pages/deb
           
-          for deb in ../../debs/deb-*/*.deb; do
-            echo "Adding package: $deb"
-            reprepro includedeb stable "$deb"
-          done
+          # Packages files
+          dpkg-scanpackages --arch amd64 --multiversion pool/ > dists/stable/main/binary-amd64/Packages
+          gzip -k -f dists/stable/main/binary-amd64/Packages
           
-          echo ${{ secrets.GPG_PASSPHRASE }} | reprepro --ask-passphrase list stable
+          dpkg-scanpackages --arch arm64 --multiversion pool/ > dists/stable/main/binary-arm64/Packages
+          gzip -k -f dists/stable/main/binary-arm64/Packages
+          
+          # Release file
+          cd dists/stable
+          apt-ftparchive release . > Release
+
+      - name: Sign Release
+        run: |
+          cd gh-pages/deb/dists/stable
+          
+          echo "${{ secrets.GPG_PASSPHRASE }}" | gpg \
+            --batch --yes --pinentry-mode loopback --passphrase-fd 0 \
+            --armor \
+            --detach-sign --output Release.gpg Release
+          
+          echo "${{ secrets.GPG_PASSPHRASE }}" | gpg \
+            --batch --yes --pinentry-mode loopback --passphrase-fd 0 \
+            --armor \
+            --clearsign --output InRelease Release
 
       - name: Export public GPG key
         run: |
