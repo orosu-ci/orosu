@@ -117,6 +117,15 @@ jobs:
         with:
           path: debs/
 
+      - name: Upload DEB packages to release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            debs/deb-amd64/*.deb
+            debs/deb-arm64/*.deb
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Checkout gh-pages branch
         uses: actions/checkout@v4
         with:
