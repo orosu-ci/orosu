@@ -78,6 +78,7 @@ jobs:
         run: cargo build --release --target ${{ matrix.target }} --locked
 
       - name: Build DEB package
+        id: build_deb
         run: |
           DEB_PATH=$(cargo deb --no-build --target ${{ matrix.target }} --variant ${{ matrix.arch }})
           echo "deb_path=${DEB_PATH}" >> $GITHUB_OUTPUT
