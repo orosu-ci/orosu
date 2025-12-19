@@ -1,0 +1,19 @@
+name: "Orosu CI Action"
+description: "Launches a remote script using Orosu CI"
+author: "Ilya Nixan <nixan@nerdy.pro>"
+inputs:
+  address:
+    description: "The address of the Orosu CI server"
+    required: true
+  script:
+    description: "The script to run remotely"
+    required: true
+  key:
+    description: "Orosu CI API Key"
+    required: true
+  args:
+    description: 'Arguments to be passed over to the script on the remote'
+    required: false
+runs:
+  using: "node20"
+  main: "dist/index.js"
