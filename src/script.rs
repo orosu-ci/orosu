@@ -4,6 +4,8 @@ use serde::{Deserialize, Serialize};
 pub struct Script {
     #[serde(rename = "name")]
     pub(crate) name: String,
+    #[serde(rename = "run_as")]
+    pub(crate) run_as: Option<String>,
     #[serde(rename = "command")]
     pub(crate) command: Vec<String>,
 }

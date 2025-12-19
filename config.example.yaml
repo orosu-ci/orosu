@@ -33,6 +33,7 @@ clients:
 #     - "192.168.0.1"
     scripts: # Define the scripts this client is allowed to execute
       - name: "my-script" # Script identifier used in CI to call this script
+#       run_as: "username" # Optional username to set UID of a user for the script
         command:
           - "echo" # Command and arguments to execute
           - "Hello from Orosu"
