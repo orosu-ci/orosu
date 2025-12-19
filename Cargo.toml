@@ -9,11 +9,11 @@ repository = "https://github.com/orosu-ci/orosu"
 homepage = "https://orosu.dev"
 
 [[bin]]
-name = "server"
+name = "orosu-server"
 path = "src/bin/server/main.rs"
 
 [[bin]]
-name = "client"
+name = "orosu-client"
 path = "src/bin/client/main.rs"
 
 [dependencies]
@@ -34,3 +34,38 @@ futures-util = "0.3.31"
 bytes = "1.11.0"
 serde-saphyr = "0.0.11"
 cidr = { version = "0.3.2", features = ["no_unsafe", "serde"] }
+
+[package.metadata.deb]
+maintainer = "Ilya Nixan <nixan@nerdy.pro>"
+copyright = "2025, Ilya Nixan <nixan@nerdy.pro>"
+license-file = ["LICENSE-MIT", "0"]
+extended-description = "Allows secure remote execution of predefined scripts via authenticated clients."
+depends = "$auto, systemd"
+section = "net"
+priority = "optional"
+conf-files = ["/etc/orosu/config.yaml"]
+maintainer-scripts = "debian/"
+assets = [
+    { source = 'target/release/orosu-server', dest = 'usr/bin/', mode = '755' },
+    { source = 'config.example.yaml', dest = 'etc/orosu/config.yaml', mode = '644' }
+]
+
+[package.metadata.deb.systemd-units]
+unit-name = "orosu-server"
+unit-scripts = "debian/"
+
+# amd64
+#[package.metadata.deb.variants.amd64]
+#assets = [
+#    ["target/release/orosu-server", "usr/bin/orosu-server", "755"],
+#    ["config.example.yaml", "etc/orousu/config.yaml", "644"],
+#    ["README.md", "usr/share/doc/orousu/", "644"],
+#]
+
+# arm64
+#[package.metadata.deb.variants.arm64]
+#assets = [
+#    ["target/release/orosu-server", "usr/bin/orosu-server", "755"],
+#    ["config.example.yaml", "etc/orousu/config.yaml", "644"],
+#    ["README.md", "usr/share/doc/orousu/", "644"],
+#]

@@ -1,0 +1,186 @@
+name: Build and publish deb package
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  PACKAGE_NAME: 'orosu-server'
+
+jobs:
+  build-deb:
+    runs-on: ubuntu-latest
+    environment: production
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            target: x86_64-unknown-linux-gnu
+            cross: false
+          - arch: arm64
+            target: aarch64-unknown-linux-gnu
+            cross: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Cache cargo dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ matrix.target }}-
+            ${{ runner.os }}-cargo-
+
+      - name: Install cross-compilation tools
+        if: matrix.cross
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+
+      - name: Install cargo-deb
+        run: cargo install cargo-deb --locked
+
+      - name: Configure cross-compilation
+        if: matrix.cross
+        run: |
+          mkdir -p .cargo
+          cat >> .cargo/config.toml << EOF
+          [target.aarch64-unknown-linux-gnu]
+          linker = "aarch64-linux-gnu-gcc"
+          EOF
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }} --locked
+
+      - name: Build DEB package
+        run: |
+          cargo deb --no-build --target ${{ matrix.target }} --variant ${{ matrix.arch }}
+
+      - name: Get package version
+        id: version
+        run: |
+          VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          DEB_FILE="${{ env.PACKAGE_NAME }}_${VERSION}_${{ matrix.arch }}.deb"
+          echo "deb_file=${DEB_FILE}" >> $GITHUB_OUTPUT
+
+      - name: Upload DEB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-${{ matrix.arch }}
+          path: target/${{ matrix.target }}/debian/${{ steps.version.outputs.deb_file }}
+          retention-days: 90
+
+  publish-repository:
+    needs: build-deb
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Get package version
+        id: version
+        run: |
+          VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Download all DEB packages
+        uses: actions/download-artifact@v4
+        with:
+          path: debs/
+
+      - name: Checkout gh-pages branch
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup DEB repository structure
+        run: |
+          cd gh-pages
+          mkdir -p deb/pool/main
+          mkdir -p deb/dists/stable/main/binary-amd64
+          mkdir -p deb/dists/stable/main/binary-arm64
+
+      - name: Copy DEB packages to repository
+        run: |
+          cp debs/deb-amd64/*.deb gh-pages/deb/pool/main/
+          cp debs/deb-arm64/*.deb gh-pages/deb/pool/main/
+
+      - name: Install dpkg-dev for repository generation
+        run: sudo apt-get update && sudo apt-get install -y dpkg-dev
+
+      - name: Generate Packages files
+        run: |
+          cd gh-pages/deb
+          
+          # AMD64
+          dpkg-scanpackages --arch amd64 --multiversion pool/ > dists/stable/main/binary-amd64/Packages
+          gzip -k -f dists/stable/main/binary-amd64/Packages
+          
+          # ARM64
+          dpkg-scanpackages --arch arm64 --multiversion pool/ > dists/stable/main/binary-arm64/Packages
+          gzip -k -f dists/stable/main/binary-arm64/Packages
+
+      - name: Generate Release file
+        run: |
+          cd gh-pages/deb/dists/stable
+          cat > Release << EOF
+          Origin: orosu.dev
+          Label: orosu.dev
+          Suite: stable
+          Codename: stable
+          Architectures: amd64 arm64
+          Components: main
+          Description: Orosu DEB Repository
+          Date: $(date -Ru)
+          EOF
+          
+          # Add checksums
+          echo "MD5Sum:" >> Release
+          find main -type f -exec md5sum {} \; | sed 's|main/| |' | awk '{printf " %s %7d %s\n", $1, $3, $2}' >> Release
+          echo "SHA1:" >> Release
+          find main -type f -exec sha1sum {} \; | sed 's|main/| |' | awk '{printf " %s %7d %s\n", $1, $3, $2}' >> Release
+          echo "SHA256:" >> Release
+          find main -type f -exec sha256sum {} \; | sed 's|main/| |' | awk '{printf " %s %7d %s\n", $1, $3, $2}' >> Release
+
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: gh-pages
+          branch: update-deb-${{ steps.version.outputs.version }}
+          base: gh-pages
+          commit-message: "chore: update DEB packages to v${{ steps.version.outputs.version }}"
+          title: "📦 Update DEB packages to v${{ steps.version.outputs.version }}"
+          body: |
+            ## 📦 DEB Package Update
+
+            **Version:** `${{ steps.version.outputs.version }}`
+            **Architectures:** `amd64`, `arm64`
+            **Triggered by:** ${{ github.event_name }}
+            **Commit:** ${{ github.sha }}
+
+          labels: |
+            automated
+            deb-package
+            production
+          draft: false

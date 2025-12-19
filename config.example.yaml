@@ -1,37 +1,38 @@
-# This is an example config file
+# Orosu Server Configuration
+# This file is installed to /etc/orosu/config.yaml by the debian package
+# Modify this file according to your deployment requirements
 
 # Listen address can be a TCP address or a Unix socket
 listen:
-  tcp: "0.0.0.0:8081"
+  tcp: "127.0.0.1:8081" # For security, consider using 127.0.0.1 instead of 0.0.0.0 if you're using a reverse proxy
   # socket: "/tmp/mysocket"
 
-# A list of IPs that are allowed to connect to the service, optional
+# Global IP whitelisting (optional)
+# Remove this section if you don't need global IP restrictions
+# A list of IPs that are allowed to connect to the service
 whitelisted_ips:
   - "127.0.0.1"
 
-log_level: "error" # Optional log level, defaults to info, possible values are debug, info, warn, error
+# Global IP blacklisting (optional)
+# A list of IPs that are not allowed to connect to the service
 
-# A list of IPs that are not allowed to connect to the service, optional
-blacklisted_ips:
-  - "192.168.0.1"
-  - "1.1.1.0/24"
+# blacklisted_ips:
+#  - "192.168.0.1"
+#  - "1.1.1.0/24"
 
-# A list of clients, typically this is a single CI setup
+# Client configuration
+# Each client represents a CI system or service that can execute scripts
+# WARNING: Replace the example values below with your actual configuration
+# Keep the 'secret' values secure - they should match the credentials used in your CI/CD pipelines
 clients:
-  - name: "my-client" # Name will be used in logs
-    secret: "my-secret" # Secret is used to authenticate clients, this should be used in CI secrets
-    whitelisted_ips: # An optional list of IPs, which are allowed to connect to this client, takes precedence over the global whitelist
-      - "127.0.0.1"
-    blacklisted_ips: # An optional list of IPs, which are not allowed to connect to this client, takes precedence over the global blacklist
-      - "192.168.0.1"
-    scripts: # A list of scripts that can be executed by this client
-      - name: "my-script" # Name will be used in CI to call the script
-        working_directory: "/tmp" # A working directory for the script
+  - name: "my-client" # Name will be used in logs - replace with your client identifier
+    secret: "my-secret" # IMPORTANT: Change this to a strong, randomly generated secret
+#   whitelisted_ips: # Optional: client-specific IP whitelist (takes precedence over global whitelist)
+#     - "127.0.0.1"
+#   blacklisted_ips: # Optional: client-specific IP blacklist (takes precedence over global blacklist)
+#     - "192.168.0.1"
+    scripts: # Define the scripts this client is allowed to execute
+      - name: "my-script" # Script identifier used in CI to call this script
         command:
-          - "echo" # A command that will be executed.
-      - name: "long-script"
-        working_directory: "./"
-        command:
-          - "sh"
-          - "long_script.sh"
-
+          - "echo" # Command and arguments to execute
+          - "Hello from Orosu"

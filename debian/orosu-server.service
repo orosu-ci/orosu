@@ -1,0 +1,17 @@
+[Unit]
+Description=Orosu CI Server
+After=network.target
+Documentation=https://orosu.dev
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/orosu-server --config-file-path /etc/orosu/config.yaml
+Restart=on-failure
+RestartSec=5s
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

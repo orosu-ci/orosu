@@ -120,10 +120,6 @@ mod tests {
         assert_eq!(configuration.clients[0].name, "my-client");
         assert_eq!(configuration.clients[0].scripts.len(), 2);
         assert_eq!(configuration.clients[0].scripts[0].name, "my-script");
-        assert_eq!(
-            configuration.clients[0].scripts[0].working_directory,
-            PathBuf::from("/tmp")
-        );
         assert_eq!(configuration.clients[0].scripts[0].command[0], "echo");
         assert_eq!(configuration.clients[0].secret, "my-secret");
         assert_eq!(
