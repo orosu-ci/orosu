@@ -2,6 +2,11 @@
 name = "orosu"
 version = "0.1.0"
 edition = "2024"
+license = "MIT OR Apache-2.0"
+authors = ["Ilya Nixan <nixan@nerdy.pro>"]
+description = "CI task remote executor"
+repository = "https://github.com/orosu-ci/orosu"
+homepage = "https://orosu.dev"
 
 [[bin]]
 name = "server"
