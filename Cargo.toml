@@ -54,18 +54,5 @@ assets = [
 unit-name = "orosu-server"
 unit-scripts = "debian/"
 
-# amd64
-#[package.metadata.deb.variants.amd64]
-#assets = [
-#    ["target/release/orosu-server", "usr/bin/orosu-server", "755"],
-#    ["config.example.yaml", "etc/orousu/config.yaml", "644"],
-#    ["README.md", "usr/share/doc/orousu/", "644"],
-#]
-
-# arm64
-#[package.metadata.deb.variants.arm64]
-#assets = [
-#    ["target/release/orosu-server", "usr/bin/orosu-server", "755"],
-#    ["config.example.yaml", "etc/orousu/config.yaml", "644"],
-#    ["README.md", "usr/share/doc/orousu/", "644"],
-#]
+[package.metadata.deb.variants.amd64]
+[package.metadata.deb.variants.arm64]
