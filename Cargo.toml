@@ -35,7 +35,6 @@ futures-util = "0.3.31"
 bytes = "1.11.0"
 serde-saphyr = "0.0.11"
 cidr = { version = "0.3.2", features = ["no_unsafe", "serde"] }
-nix = { version = "0.30.1", features = ["user"] }
 users = "0.11.0"
 
 [package.metadata.deb]

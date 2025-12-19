@@ -67,22 +67,10 @@ impl Task {
         #[cfg(target_os = "linux")]
         {
             if let Some(username) = script.run_as {
-                unsafe {
-                    command.pre_exec(move || {
-                        let user = users::get_user_by_name(&username).ok_or_else(|| {
-                            std::io::Error::new(std::io::ErrorKind::NotFound, "User not found")
-                        })?;
-
-                        nix::unistd::setgid(nix::unistd::Gid::from_raw(user.primary_group_id()))
-                            .map_err(|e| {
-                                std::io::Error::new(std::io::ErrorKind::PermissionDenied, e)
-                            })?;
-                        nix::unistd::setuid(nix::unistd::Uid::from_raw(user.uid())).map_err(
-                            |e| std::io::Error::new(std::io::ErrorKind::PermissionDenied, e),
-                        )?;
-                        Ok(())
-                    });
-                }
+                let user = users::get_user_by_name(&username).ok_or_else(|| {
+                    std::io::Error::new(std::io::ErrorKind::NotFound, "User not found")
+                })?;
+                command.uid(user.uid());
             };
         }
 
