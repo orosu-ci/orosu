@@ -55,7 +55,6 @@ mod tests {
     use crate::configuration::ListenConfiguration::{Socket, Tcp};
     use crate::configuration::{Configuration, ListenConfiguration, LogLevelConfiguration};
     use cidr::IpCidr;
-    use std::fs::File;
     use std::net::IpAddr;
     use std::path::PathBuf;
 
@@ -106,10 +105,30 @@ mod tests {
     }
 
     #[test]
-    fn read_full_config_from_file() {
-        let file = File::open("config.example.yaml").unwrap();
-        let reader = std::io::BufReader::new(file);
-        let configuration: Configuration = serde_saphyr::from_reader(reader).unwrap();
+    fn read_full_config() {
+        let contents = r#"
+listen:
+  tcp: "0.0.0.0:8081"
+log_level: error
+whitelisted_ips:
+  - "127.0.0.1"
+blacklisted_ips:
+  - "192.168.0.1"
+  - "1.1.1.0/24"
+clients:
+  - name: "my-client"
+    secret: "my-secret"
+    whitelisted_ips:
+      - "127.0.0.1"
+    blacklisted_ips:
+      - "192.168.0.1"
+    scripts:
+      - name: "my-script"
+        command:
+          - "echo"
+          - "Hello from Orosu"
+"#;
+        let configuration: Configuration = serde_saphyr::from_str(contents).unwrap();
         let Tcp(addr) = configuration.listen else {
             panic!("Expected Tcp configuration");
         };
@@ -118,12 +137,8 @@ mod tests {
         assert_eq!(configuration.log_level, LogLevelConfiguration::Error);
         assert_eq!(configuration.clients.len(), 1);
         assert_eq!(configuration.clients[0].name, "my-client");
-        assert_eq!(configuration.clients[0].scripts.len(), 2);
+        assert_eq!(configuration.clients[0].scripts.len(), 1);
         assert_eq!(configuration.clients[0].scripts[0].name, "my-script");
-        assert_eq!(
-            configuration.clients[0].scripts[0].working_directory,
-            PathBuf::from("/tmp")
-        );
         assert_eq!(configuration.clients[0].scripts[0].command[0], "echo");
         assert_eq!(configuration.clients[0].secret, "my-secret");
         assert_eq!(

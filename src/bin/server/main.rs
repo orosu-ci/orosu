@@ -8,7 +8,7 @@ use server::Server;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    dotenvy::dotenv()?;
+    _ = dotenvy::dotenv();
 
     let arguments = CliArguments::parse();
 
