@@ -1,0 +1,23 @@
+Origin: orosu.dev
+Label: orosu.dev
+Suite: stable
+Codename: stable
+Architectures: amd64 arm64
+Components: main
+Description: Orosu DEB Repository
+Date: Fri, 19 Dec 2025 13:03:22 +0000
+MD5Sum:
+ d4282257c248662b04dd141eb7fcb08f       0 binary-amd64/Packages
+ ff516d6500681beacd30dfc456956d30       0 binary-amd64/Packages.gz
+ 6ab52147380b47bcaf8f9172b1a37b31       0 binary-arm64/Packages
+ 2bbe788b0799e9bf55e3f6e8d049ad91       0 binary-arm64/Packages.gz
+SHA1:
+ fe5c2dc1e4a9a9ce762637894a32a41941bf0126       0 binary-amd64/Packages
+ bd42d4819ef7877c86dbc794a886b52973c4a7c9       0 binary-amd64/Packages.gz
+ 197669a6127f9abb314f0b11f1f090918671c6e4       0 binary-arm64/Packages
+ 29d20b6e1cebb3d19e11f1798e76cd6ee45e2960       0 binary-arm64/Packages.gz
+SHA256:
+ 17711e652d4810419a4ef01d6b10feb5df150b6b6187407ade4bd925e6723c4f       0 binary-amd64/Packages
+ 2b18e5678010bf9ba211367144be60f21f5f4c24c403e89794d6b41bab68f8e3       0 binary-amd64/Packages.gz
+ 0190c80c4785386f39b7a96bf35f73e7cc28b25d946e05db99b555868a1d4fe8       0 binary-arm64/Packages
+ 27b4062c75538c3d383949d2556abc915f27d1f600add09e8244646753a187da       0 binary-arm64/Packages.gz
