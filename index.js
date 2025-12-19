@@ -21,6 +21,10 @@ async function run() {
 
   const binaryPath = path.join("bin", artifact);
 
+  if (platform !== "win32") {
+    await fs.chmod(binaryPath, 0o755);
+  }
+
   core.info("Running orosu-client...");
 
   const cmdArgs = ["--address", address, "--script", script, "--key", key];
