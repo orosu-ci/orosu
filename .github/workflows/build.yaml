@@ -140,6 +140,35 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Checkout client repository
+        uses: actions/checkout@v4
+        with:
+          ref: action
+          path: action
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update client repository
+        run: |
+          cd action
+          mkdir -p bin
+          rm -rf bin/*
+          cp artifacts/orosu-client-amd64/orosu-client-linux-amd64 bin/
+          cp artifacts/orosu-client-arm64/orosu-client-linux-arm64 bin/
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: action
+          branch: update-binaries-v${{ steps.version.outputs.version }}
+          commit-message: "chore: update binaries to v${{ steps.version.outputs.version }}"
+          title: "chore: update binaries to v${{ steps.version.outputs.version }}"
+          body: |
+            Automated update of binaries to version ${{ steps.version.outputs.version }}
+            
+            This PR was automatically created by the build workflow.
+          base: action
+
       - name: Checkout gh-pages branch
         uses: actions/checkout@v4
         with:
