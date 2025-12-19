@@ -63,7 +63,7 @@ jobs:
           sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
       - name: Install cargo-deb
-        run: cargo install cargo-deb --locked
+        run: cargo install cargo-deb --locked || true
 
       - name: Configure cross-compilation
         if: matrix.cross
@@ -75,7 +75,7 @@ jobs:
           EOF
 
       - name: Build release binary
-        run: cargo build --release --target ${{ matrix.target }} --locked || true
+        run: cargo build --release --target ${{ matrix.target }} --locked
 
       - name: Build DEB package
         run: |
