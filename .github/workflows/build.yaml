@@ -185,15 +185,12 @@ jobs:
       - name: Import GPG key
         run: |
           echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
-          echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --yes --passphrase-fd 0 --pinentry-mode loopback --armor --detach-sign --output test.gpg test.txt || true
 
       - name: Sign Release file
         run: |
           cd gh-pages/deb/dists/stable
-          gpg --batch --yes --armor --detach-sign --output Release.gpg Release
-          gpg --batch --yes --armor --clearsign --output InRelease Release
-        env:
-          GPG_TTY: $(tty)
+          echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --yes --armor --pinentry-mode loopback --passphrase-fd 0 --detach-sign --output Release.gpg Release
+          echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --yes --armor --pinentry-mode loopback --passphrase-fd 0 --clearsign --output InRelease Release
 
       - name: Export public GPG key
         run: |
