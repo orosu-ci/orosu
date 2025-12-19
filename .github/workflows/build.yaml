@@ -27,6 +27,18 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Verify version matches tag
+        run: |
+          TAG_VERSION=${GITHUB_REF#refs/tags/v}
+          CARGO_VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          echo "Tag version: ${TAG_VERSION}"
+          echo "Cargo.toml version: ${CARGO_VERSION}"
+          if [ "${TAG_VERSION}" != "${CARGO_VERSION}" ]; then
+            echo "Error: Tag version (${TAG_VERSION}) does not match Cargo.toml version (${CARGO_VERSION})"
+            exit 1
+          fi
+          echo "Version check passed: ${TAG_VERSION}"
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -161,26 +173,11 @@ jobs:
           echo "SHA256:" >> Release
           find main -type f -exec sha256sum {} \; | sed 's|main/| |' | awk '{printf " %s %7d %s\n", $1, $3, $2}' >> Release
 
-
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v6
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          path: gh-pages
-          branch: update-deb-${{ steps.version.outputs.version }}
-          base: gh-pages
-          commit-message: "chore: update DEB packages to v${{ steps.version.outputs.version }}"
-          title: "📦 Update DEB packages to v${{ steps.version.outputs.version }}"
-          body: |
-            ## 📦 DEB Package Update
-
-            **Version:** `${{ steps.version.outputs.version }}`
-            **Architectures:** `amd64`, `arm64`
-            **Triggered by:** ${{ github.event_name }}
-            **Commit:** ${{ github.sha }}
-
-          labels: |
-            automated
-            deb-package
-            production
-          draft: false
+      - name: Commit and push changes
+        run: |
+          cd gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "chore: update DEB packages to v${{ steps.version.outputs.version }}" || exit 0
+          git push
