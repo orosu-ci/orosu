@@ -146,51 +146,48 @@ jobs:
           cp debs/deb-arm64/*.deb gh-pages/deb/pool/main/
 
       - name: Install dpkg-dev for repository generation
-        run: sudo apt-get update && sudo apt-get install -y dpkg-dev
-
-      - name: Generate Packages files
-        run: |
-          cd gh-pages/deb
-          
-          # AMD64
-          dpkg-scanpackages --arch amd64 --multiversion pool/ > dists/stable/main/binary-amd64/Packages
-          gzip -k -f dists/stable/main/binary-amd64/Packages
-          
-          # ARM64
-          dpkg-scanpackages --arch arm64 --multiversion pool/ > dists/stable/main/binary-arm64/Packages
-          gzip -k -f dists/stable/main/binary-arm64/Packages
-
-      - name: Generate Release file
-        run: |
-          cd gh-pages/deb/dists/stable
-          cat > Release << EOF
-          Origin: orosu.dev
-          Label: orosu.dev
-          Suite: stable
-          Codename: stable
-          Architectures: amd64 arm64
-          Components: main
-          Description: Orosu DEB Repository
-          Date: $(date -Ru)
-          EOF
-          
-          # Add checksums
-          echo "MD5Sum:" >> Release
-          find main -type f -exec md5sum {} \; | sed 's|main/| |' | awk '{printf " %s %7d %s\n", $1, $3, $2}' >> Release
-          echo "SHA1:" >> Release
-          find main -type f -exec sha1sum {} \; | sed 's|main/| |' | awk '{printf " %s %7d %s\n", $1, $3, $2}' >> Release
-          echo "SHA256:" >> Release
-          find main -type f -exec sha256sum {} \; | sed 's|main/| |' | awk '{printf " %s %7d %s\n", $1, $3, $2}' >> Release
+        run: sudo apt-get update && sudo apt-get install -y gpg reporepo
 
       - name: Import GPG key
         run: |
           echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
+          KEY_GRIP=$(gpg --with-keygrip --list-secret-keys | grep "Keygrip" | head -1 | awk '{print $3}')
+          echo "${{ secrets.GPG_PASSPHRASE }}" | /usr/lib/gnupg/gpg-preset-passphrase --preset "$KEY_GRIP"
 
-      - name: Sign Release file
+
+      - name: Setup reprepro configuration
         run: |
-          cd gh-pages/deb/dists/stable
-          echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --yes --armor --pinentry-mode loopback --passphrase-fd 0 --detach-sign --output Release.gpg Release
-          echo "${{ secrets.GPG_PASSPHRASE }}" | gpg --batch --yes --armor --pinentry-mode loopback --passphrase-fd 0 --clearsign --output InRelease Release
+          cd gh-pages/deb
+          mkdir -p conf
+          
+          KEY_ID=$(gpg --list-secret-keys --keyid-format LONG | grep sec | awk '{print $2}' | cut -d'/' -f2 | head -1)
+          echo "Signing with key: $KEY_ID"
+          
+          cat > conf/distributions << EOF
+          Origin: orosu.dev
+          Label: orosu.dev
+          Codename: stable
+          Architectures: amd64 arm64
+          Components: main
+          Description: Orosu DEB Repository
+          SignWith: $KEY_ID
+          EOF
+          
+          cat > conf/options << EOF
+          verbose
+          basedir .
+          EOF
+
+      - name: Build repository with reprepro
+        run: |
+          cd gh-pages/deb
+          
+          for deb in ../../debs/deb-*/*.deb; do
+            echo "Adding package: $deb"
+            reprepro includedeb stable "$deb"
+          done
+          
+          reprepro list stable
 
       - name: Export public GPG key
         run: |
