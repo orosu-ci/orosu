@@ -182,6 +182,22 @@ jobs:
           echo "SHA256:" >> Release
           find main -type f -exec sha256sum {} \; | sed 's|main/| |' | awk '{printf " %s %7d %s\n", $1, $3, $2}' >> Release
 
+      - name: Import GPG key
+        run: |
+          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
+
+      - name: Sign Release file
+        run: |
+          cd gh-pages/deb/dists/stable
+          gpg --batch --yes --armor --detach-sign --output Release.gpg Release
+          gpg --batch --yes --armor --clearsign --output InRelease Release
+        env:
+          GPG_TTY: $(tty)
+
+      - name: Export public GPG key
+        run: |
+          gpg --armor --export > gh-pages/deb/public.key
+
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
