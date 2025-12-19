@@ -146,7 +146,7 @@ jobs:
           cp debs/deb-arm64/*.deb gh-pages/deb/pool/main/
 
       - name: Install dpkg-dev for repository generation
-        run: sudo apt-get update && sudo apt-get install -y gpg reporepo
+        run: sudo apt-get update && sudo apt-get install -y gpg reprepro
 
       - name: Import GPG key
         run: |
