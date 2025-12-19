@@ -41,6 +41,9 @@ jobs:
       - name: Build with VitePress
         run: pnpm run docs:build
 
+      - name: Prepare deb repository
+        run: cp -r deb .vitepress/dist/
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
