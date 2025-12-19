@@ -71,6 +71,7 @@ impl Task {
                     std::io::Error::new(std::io::ErrorKind::NotFound, "User not found")
                 })?;
                 command.uid(user.uid());
+                command.gid(user.primary_group_id());
             };
         }
 
