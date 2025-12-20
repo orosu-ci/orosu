@@ -7,6 +7,8 @@ listen:
   tcp: "127.0.0.1:8081" # For security, consider using 127.0.0.1 instead of 0.0.0.0 if you're using a reverse proxy
   # socket: "/tmp/mysocket"
 
+# log_level: "debug" # Valid values are: debug, info, warn, error. Default is info
+
 # Global IP whitelisting (optional)
 # Remove this section if you don't need global IP restrictions
 # A list of IPs that are allowed to connect to the service
