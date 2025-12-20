@@ -1,6 +1,68 @@
 /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
+/***/ 8415:
+/***/ ((__unused_webpack_module, __webpack_exports__, __nccwpck_require__) => {
+
+"use strict";
+__nccwpck_require__.r(__webpack_exports__);
+/* harmony export */ __nccwpck_require__.d(__webpack_exports__, {
+/* harmony export */   run: () => (/* binding */ run)
+/* harmony export */ });
+const core = __nccwpck_require__(7484);
+const exec = __nccwpck_require__(5236);
+const { promises: fs } = __nccwpck_require__(9896);
+const path = __nccwpck_require__(6928);
+const os = __nccwpck_require__(857);
+
+async function run() {
+  try {
+    const address = core.getInput("address", { required: true });
+    const script = core.getInput("script", { required: true });
+    const key = core.getInput("key", { required: true });
+    const args = core.getInput("args") || "";
+
+    const platform = os.platform(); // linux, darwin, win32
+    const arch = os.arch() === "arm64" ? "arm64" : "amd64";
+
+    const artifact = `orosu-client-${platform}-${arch}${
+      platform === "win32" ? ".exe" : ""
+    }`;
+
+    core.info(`Platform: ${platform}-${arch}`);
+
+    const binaryPath = path.join("bin", artifact);
+
+    if (platform !== "win32") {
+      await fs.chmod(binaryPath, 0o755);
+    }
+
+    core.info("Running orosu-client...");
+    console.error(`Executing: ${binaryPath} --address ${address} --script ${script} --key [REDACTED] ${args}`);
+    console.log(`Executing: ${binaryPath} --address ${address} --script ${script} --key [REDACTED] ${args}`);
+
+    const cmdArgs = ["--address", address, "--script", script, "--key", key];
+
+    if (args) {
+      cmdArgs.push(...args.split(" ").filter((arg) => arg.length > 0));
+    }
+
+    const exitCode = await exec.exec(binaryPath, cmdArgs, {
+      ignoreReturnCode: true,
+    });
+    
+    if (exitCode !== 0) {
+      process.exit(exitCode);
+    }
+  } catch (error) {
+    core.setFailed(error.message);
+    process.exit(1);
+  }
+}
+
+
+/***/ }),
+
 /***/ 4914:
 /***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
 
@@ -27824,65 +27886,9 @@ module.exports = parseParams
 /******/ 	
 /************************************************************************/
 var __webpack_exports__ = {};
-// This entry need to be wrapped in an IIFE because it need to be in strict mode.
-(() => {
-"use strict";
-__nccwpck_require__.r(__webpack_exports__);
-/* harmony export */ __nccwpck_require__.d(__webpack_exports__, {
-/* harmony export */   run: () => (/* binding */ run)
-/* harmony export */ });
-const core = __nccwpck_require__(7484);
-const exec = __nccwpck_require__(5236);
-const { promises: fs } = __nccwpck_require__(9896);
-const path = __nccwpck_require__(6928);
-const os = __nccwpck_require__(857);
+const { run } = __nccwpck_require__(8415);
 
-async function run() {
-  try {
-    const address = core.getInput("address", { required: true });
-    const script = core.getInput("script", { required: true });
-    const key = core.getInput("key", { required: true });
-    const args = core.getInput("args") || "";
-
-    const platform = os.platform(); // linux, darwin, win32
-    const arch = os.arch() === "arm64" ? "arm64" : "amd64";
-
-    const artifact = `orosu-client-${platform}-${arch}${
-      platform === "win32" ? ".exe" : ""
-    }`;
-
-    core.info(`Platform: ${platform}-${arch}`);
-
-    const binaryPath = path.join("bin", artifact);
-
-    if (platform !== "win32") {
-      await fs.chmod(binaryPath, 0o755);
-    }
-
-    core.info("Running orosu-client...");
-    console.error(`Executing: ${binaryPath} --address ${address} --script ${script} --key [REDACTED] ${args}`);
-    console.log(`Executing: ${binaryPath} --address ${address} --script ${script} --key [REDACTED] ${args}`);
-
-    const cmdArgs = ["--address", address, "--script", script, "--key", key];
-
-    if (args) {
-      cmdArgs.push(...args.split(" ").filter((arg) => arg.length > 0));
-    }
-
-    const exitCode = await exec.exec(binaryPath, cmdArgs, {
-      ignoreReturnCode: true,
-    });
-    
-    if (exitCode !== 0) {
-      process.exit(exitCode);
-    }
-  } catch (error) {
-    core.setFailed(error.message);
-    process.exit(1);
-  }
-}
-
-})();
+run();
 
 module.exports = __webpack_exports__;
 /******/ })()
