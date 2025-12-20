@@ -174,7 +174,7 @@ async fn handle_task_run_output(mut socket: WebSocket, client: Client) {
         tracing::error!("Cannot send close message: {:?}", e);
     };
 
-    tracing::info!("Send close message");
+    tracing::debug!("Send close message");
 
     let wait_for_close = async {
         while let Some(msg) = receiver.next().await {
@@ -184,7 +184,7 @@ async fn handle_task_run_output(mut socket: WebSocket, client: Client) {
                     return;
                 }
                 Ok(msg) => {
-                    tracing::info!("Received message: {:?}", msg);
+                    tracing::debug!("Received message: {:?}", msg);
                 }
                 Err(e) => {
                     tracing::error!("Cannot receive message: {:?}", e);
@@ -193,7 +193,7 @@ async fn handle_task_run_output(mut socket: WebSocket, client: Client) {
             }
         }
 
-        tracing::info!("Client disconnected");
+        tracing::debug!("Client disconnected");
     };
 
     if timeout(Duration::from_secs(3), wait_for_close)

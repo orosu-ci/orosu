@@ -1,10 +1,12 @@
 mod arguments;
 
 use crate::arguments::CliArguments;
+use anyhow::Context;
 use clap::Parser;
 use orosu::configuration::Configuration;
 use orosu::server;
 use server::Server;
+use tracing::level_filters::LevelFilter;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -12,12 +14,15 @@ async fn main() -> anyhow::Result<()> {
 
     let arguments = CliArguments::parse();
 
+    let configuration = Configuration::from_file(&arguments.config_file_path)
+        .context("unable to load configuration file")?;
+
     tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_max_level(LevelFilter::from_level(configuration.log_level.into()))
         .compact()
         .init();
 
-    let configuration = Configuration::from_file(&arguments.config_file_path)?;
+    tracing::debug!("Starting Orosu server");
 
     let server = Server::new(
         configuration.listen,
