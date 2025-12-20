@@ -8,18 +8,18 @@ use crate::api::{
 use crate::client_key::{Claims, ClientKey};
 use crate::tasks::TaskOutput;
 use anyhow::Context;
-use axum::http::header::{AUTHORIZATION, USER_AGENT};
 use axum::http::Uri;
-use ed25519_dalek::pkcs8::EncodePrivateKey;
+use axum::http::header::{AUTHORIZATION, USER_AGENT};
 use ed25519_dalek::SigningKey;
+use ed25519_dalek::pkcs8::EncodePrivateKey;
 use futures_util::{SinkExt, StreamExt};
-use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
+use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 use std::process::exit;
 use std::time::SystemTime;
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
-use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::tungstenite::Message;
+use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
 pub struct ApiClient {

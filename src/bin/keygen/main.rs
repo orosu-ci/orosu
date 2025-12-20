@@ -1,10 +1,10 @@
 use crate::arguments::CliArguments;
 use anyhow::Context;
-use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 use clap::Parser;
-use ed25519_dalek::ed25519::signature::rand_core::OsRng;
 use ed25519_dalek::SigningKey;
+use ed25519_dalek::ed25519::signature::rand_core::OsRng;
 use orosu::client_key::ClientKey;
 use std::io;
 use std::io::Write;

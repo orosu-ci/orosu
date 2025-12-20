@@ -1,8 +1,8 @@
 use crate::arguments::CliArguments;
 use anyhow::Context;
 use axum::http::Uri;
-use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 use clap::Parser;
 use orosu::api::client::ApiClient;
 use orosu::client_key::ClientKey;

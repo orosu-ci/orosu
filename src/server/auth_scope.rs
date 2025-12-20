@@ -1,13 +1,13 @@
 use crate::api::UserAgentHeader;
 use crate::client_key::Claims;
 use crate::server::{AuthContext, AuthScope, ServerState, WorkerAuthContext};
+use axum::Extension;
 use axum::extract::FromRequestParts;
+use axum::http::StatusCode;
 use axum::http::header::AUTHORIZATION;
 use axum::http::request::Parts;
-use axum::http::StatusCode;
-use axum::Extension;
-use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 use ed25519_dalek::VerifyingKey;
 use jsonwebtoken::{Algorithm, DecodingKey, Validation};
 use std::sync::Arc;

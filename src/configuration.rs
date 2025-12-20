@@ -151,7 +151,10 @@ clients:
         assert_eq!(configuration.clients[0].scripts.len(), 1);
         assert_eq!(configuration.clients[0].scripts[0].name, "my-script");
         assert_eq!(configuration.clients[0].scripts[0].command[0], "echo");
-        assert_eq!(configuration.clients[0].secret_file, PathBuf::from("my-secret"));
+        assert_eq!(
+            configuration.clients[0].secret_file,
+            PathBuf::from("my-secret")
+        );
         assert_eq!(
             configuration.clients[0].whitelisted_ips,
             Some(vec![
