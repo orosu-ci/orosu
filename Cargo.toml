@@ -58,6 +58,7 @@ conf-files = ["/etc/orosu/config.yaml"]
 maintainer-scripts = "debian/"
 assets = [
     { source = 'target/release/orosu-server', dest = 'usr/bin/', mode = '755' },
+    { source = 'target/release/orosu-keygen', dest = 'usr/bin/', mode = '755' },
     { source = 'config.example.yaml', dest = 'etc/orosu/config.yaml', mode = '644' }
 ]
 
