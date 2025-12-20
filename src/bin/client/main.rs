@@ -3,7 +3,6 @@ use anyhow::Context;
 use axum::http::Uri;
 use clap::Parser;
 use orosu::api::client::ApiClient;
-use std::str::FromStr;
 
 mod arguments;
 
