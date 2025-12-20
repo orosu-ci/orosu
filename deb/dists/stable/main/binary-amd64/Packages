@@ -219,6 +219,23 @@ Homepage: https://orosu.dev
 Description: CI task remote executor server
  Allows secure remote execution of predefined scripts via authenticated clients.
 
+Package: orosu
+Version: 0.2.5-1
+Architecture: amd64
+Maintainer: Ilya Nixan <nixan@nerdy.pro>
+Installed-Size: 5377
+Depends: libc6 (>= 2.34), libc6 (>= 2.39), systemd
+Filename: pool/main/orosu_0.2.5-1_amd64.deb
+Size: 1487224
+MD5sum: ef5ebe0408f84e43ad6b793a493f41a5
+SHA1: ccfb2351342fa877e567c17635e5a3dac0ae7246
+SHA256: a487f1c2bc788ab3b2cdf9c395d4209536426d40190813b1b221e0119b8d2730
+Section: net
+Priority: optional
+Homepage: https://orosu.dev
+Description: CI task remote executor server
+ Allows secure remote execution of predefined scripts via authenticated clients.
+
 Package: orosu-amd64
 Version: 0.1.0-1
 Architecture: amd64
@@ -315,6 +332,23 @@ Size: 1473232
 MD5sum: 73365624e2debd760e049ed7a726c088
 SHA1: e0202d1a9bb3c0ce73ec23d3b5adad07e340d715
 SHA256: 74f969b2a6d1e25bd28568ffc7595dc06a9bbc94486d6745a8f0e48616765d32
+Section: net
+Priority: optional
+Homepage: https://orosu.dev
+Description: CI task remote executor client
+ Allows secure remote execution of predefined scripts via authenticated clients.
+
+Package: orosu-client
+Version: 0.2.5-1
+Architecture: amd64
+Maintainer: Ilya Nixan <nixan@nerdy.pro>
+Installed-Size: 4195
+Depends: libc6 (>= 2.34)
+Filename: pool/main/orosu-client_0.2.5-1_amd64.deb
+Size: 1472988
+MD5sum: cb76a7f50e406bb41a381efab410e464
+SHA1: 5fde3afc6e272278654e1a580ff69a708e5d66a4
+SHA256: edb6159441f06e190cd86d3b3c1a1b38c7c4b01dd8f1fface31f760c369c6df3
 Section: net
 Priority: optional
 Homepage: https://orosu.dev
