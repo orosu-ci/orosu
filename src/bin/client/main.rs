@@ -1,8 +1,8 @@
 use crate::arguments::CliArguments;
+use anyhow::Context;
 use axum::http::Uri;
 use clap::Parser;
 use orosu::api::client::ApiClient;
-use std::str::FromStr;
 
 mod arguments;
 
@@ -17,7 +17,9 @@ async fn main() -> anyhow::Result<()> {
         .compact()
         .init();
 
-    let mut parts = Uri::from_str(&arguments.address)?.into_parts();
+    let mut parts = Uri::try_from(&arguments.address)
+        .context("invalid server address format")?
+        .into_parts();
     if parts.scheme.is_none() {
         parts.scheme = Some("wss".try_into()?);
     }
@@ -26,7 +28,9 @@ async fn main() -> anyhow::Result<()> {
     }
     let uri = Uri::from_parts(parts)?;
 
-    let client = ApiClient::connect(uri, arguments.key).await?;
+    let client = ApiClient::connect(uri, arguments.key)
+        .await
+        .context("failed to connect to server")?;
 
     client
         .start_task(arguments.variables, arguments.script)
