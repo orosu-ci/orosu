@@ -27,6 +27,8 @@ export async function run() {
     }
 
     core.info("Running orosu-client...");
+    console.error(`Executing: ${binaryPath} --address ${address} --script ${script} --key [REDACTED] ${args}`);
+    console.log(`Executing: ${binaryPath} --address ${address} --script ${script} --key [REDACTED] ${args}`);
 
     const cmdArgs = ["--address", address, "--script", script, "--key", key];
 
@@ -34,19 +36,9 @@ export async function run() {
       cmdArgs.push(...args.split(" ").filter((arg) => arg.length > 0));
     }
 
-    const options = {
-      listeners: {
-        stdout: (/** @type {string | Uint8Array<ArrayBufferLike>} */ data) => {
-          core.info(data.toString());
-        },
-        stderr: (/** @type {string | Uint8Array<ArrayBufferLike>} */ data) => {
-          core.error(data.toString());
-        },
-      },
+    const exitCode = await exec.exec(binaryPath, cmdArgs, {
       ignoreReturnCode: true,
-    };
-
-    const exitCode = await exec.exec(binaryPath, cmdArgs, options);
+    });
     
     if (exitCode !== 0) {
       process.exit(exitCode);
