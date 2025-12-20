@@ -2,6 +2,10 @@
 name: 'Run Orosu Client'
 description: 'Install and run orosu-client with specified parameters'
 
+branding:
+  icon: 'terminal'
+  color: 'blue'
+
 inputs:
   address:
     description: 'Orosu server address'
