@@ -31,7 +31,7 @@ async function run() {
 
     core.info(`Platform: ${platform}-${arch}`);
 
-    const binaryPath = path.join("bin", artifact);
+    const binaryPath = path.join("..", "bin", artifact);
 
     if (platform !== "win32") {
       await fs.chmod(binaryPath, 0o755);
