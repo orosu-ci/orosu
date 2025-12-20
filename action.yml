@@ -1,0 +1,48 @@
+
+name: 'Run Orosu Client'
+description: 'Install and run orosu-client with specified parameters'
+
+inputs:
+  address:
+    description: 'Orosu server address'
+    required: true
+  key:
+    description: 'Authentication key'
+    required: true
+  script:
+    description: 'Script to execute'
+    required: true
+  arguments:
+    description: 'Script arguments (space-separated string, e.g. "arg1 arg2 arg3")'
+    required: false
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Get version from Cargo.toml
+      id: version
+      shell: bash
+      run: |
+        VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+        echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+    - name: Add Orosu repository
+      shell: bash
+      run: |
+        curl -fsSL https://orosu.dev/deb/public.key | sudo gpg --dearmor -o /usr/share/keyrings/orosu.gpg
+        echo "deb [signed-by=/usr/share/keyrings/orosu.gpg] https://orosu.dev/deb stable main" | sudo tee /etc/apt/sources.list.d/orosu.list
+        sudo apt update
+
+    - name: Install orosu-client
+      shell: bash
+      run: sudo apt install -y orosu-client=${{ steps.version.outputs.version }}
+
+    - name: Run orosu-client
+      shell: bash
+      run: |
+        orosu-client \
+          --address "${{ inputs.address }}" \
+          --script "${{ inputs.script }}" \
+          --key "${{ inputs.key }}" \
+          ${{ inputs.arguments }}
