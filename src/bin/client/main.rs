@@ -24,9 +24,8 @@ async fn main() -> anyhow::Result<()> {
     let key = STANDARD
         .decode(arguments.key)
         .context("invalid key format")?;
-    let key = rkyv::from_bytes::<ClientKey, rkyv::rancor::Error>(&key)
-        .context("invalid key format")?
-        .into();
+    let key =
+        rkyv::from_bytes::<ClientKey, rkyv::rancor::Error>(&key).context("invalid key format")?;
 
     let mut parts = Uri::try_from(&arguments.address)
         .context("invalid server address format")?
