@@ -27876,11 +27876,17 @@ async function run() {
           process.stderr.write(data);
         },
       },
+      ignoreReturnCode: true,
     };
 
-    await exec.exec(binaryPath, cmdArgs, options);
+    const exitCode = await exec.exec(binaryPath, cmdArgs, options);
+    
+    if (exitCode !== 0) {
+      process.exit(exitCode);
+    }
   } catch (error) {
     core.setFailed(error.message);
+    process.exit(1);
   }
 }
 
