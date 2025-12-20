@@ -1,12 +1,12 @@
 [package]
 name = "orosu-server"
-version = "0.2.0"
-edition = "2024"
-license = "MIT OR Apache-2.0"
-authors = ["Ilya Nixan <nixan@nerdy.pro>"]
-description = "CI task remote executor"
-repository = "https://github.com/orosu-ci/orosu"
-homepage = "https://orosu.dev"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "CI task remote executor server"
 
 [dependencies]
 anyhow = "1.0.100"
@@ -21,7 +21,7 @@ tracing-subscriber = "0.3.22"
 name = "orosu"
 maintainer = "Ilya Nixan <nixan@nerdy.pro>"
 copyright = "2025, Ilya Nixan <nixan@nerdy.pro>"
-license-file = ["LICENSE-MIT", "0"]
+license-file = ["../LICENSE-APACHE", "0"]
 extended-description = "Allows secure remote execution of predefined scripts via authenticated clients."
 depends = "$auto, systemd"
 section = "net"
@@ -31,7 +31,7 @@ maintainer-scripts = "debian/"
 assets = [
     { source = 'target/release/orosu-server', dest = 'usr/bin/', mode = '755' },
     { source = 'target/release/orosu-keygen', dest = 'usr/bin/', mode = '755' },
-    { source = 'config.example.yaml', dest = 'etc/orosu/config.yaml', mode = '644' }
+    { source = '../config.example.yaml', dest = 'etc/orosu/config.yaml', mode = '644' }
 ]
 
 [package.metadata.deb.systemd-units]

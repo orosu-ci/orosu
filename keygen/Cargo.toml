@@ -1,12 +1,12 @@
 [package]
 name = "orosu-keygen"
-version = "0.2.0"
-edition = "2024"
-license = "MIT OR Apache-2.0"
-authors = ["Ilya Nixan <nixan@nerdy.pro>"]
-description = "CI task remote executor"
-repository = "https://github.com/orosu-ci/orosu"
-homepage = "https://orosu.dev"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "CI task remote executor keygen"
 
 [dependencies]
 anyhow = "1.0.100"
