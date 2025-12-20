@@ -237,9 +237,9 @@ jobs:
         run: |
           cd gh-pages
           git add deb
-          git commit -m "chore: update DEB packages to v${{ steps.version.outputs.version }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: update DEB packages to v${{ steps.version.outputs.version }}"
           git push -f origin gh-pages
 
 
