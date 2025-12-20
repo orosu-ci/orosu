@@ -1,6 +1,9 @@
 name: "Orosu CI Action"
 description: "Launches a remote script using Orosu CI"
 author: "Ilya Nixan <nixan@nerdy.pro>"
+branding:
+  icon: "terminal"
+  color: "blue"
 inputs:
   address:
     description: "The address of the Orosu CI server"
