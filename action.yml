@@ -28,7 +28,7 @@ runs:
       id: version
       shell: bash
       run: |
-        VERSION=$(grep '^version' Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
+        VERSION=$(grep '^version' $GITHUB_ACTION_PATH/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
         echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
     - name: Add Orosu repository
