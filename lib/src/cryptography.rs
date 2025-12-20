@@ -1,8 +1,8 @@
 use anyhow::Context;
-use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
-use ed25519_dalek::ed25519::signature::rand_core::OsRng;
+use base64::engine::general_purpose::STANDARD;
 use ed25519_dalek::SigningKey;
+use ed25519_dalek::ed25519::signature::rand_core::OsRng;
 
 #[derive(
     Debug,
