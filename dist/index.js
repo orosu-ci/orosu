@@ -26,8 +26,6 @@ async function run() {
 
     const actionDir = path.resolve(__dirname, "..");
     const binaryPath = path.join(actionDir, "bin", artifact);
-    
-    core.info(`Binary path: ${binaryPath}`);
 
     if (platform !== "win32") {
       await fs.chmod(binaryPath, 0o755);
@@ -42,8 +40,6 @@ async function run() {
     if (normalizedArgs.length > 0) {
       cmdArgs.push(...normalizedArgs);
     }
-
-    core.info(`Arguments: ${JSON.stringify(cmdArgs)}`);
 
     const exitCode = await exec.exec(binaryPath, cmdArgs, {
       ignoreReturnCode: true,
