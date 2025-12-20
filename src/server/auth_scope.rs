@@ -1,11 +1,17 @@
 use crate::api::UserAgentHeader;
+use crate::client_key::Claims;
 use crate::server::{AuthContext, AuthScope, ServerState, WorkerAuthContext};
 use axum::Extension;
 use axum::extract::FromRequestParts;
 use axum::http::StatusCode;
 use axum::http::header::AUTHORIZATION;
 use axum::http::request::Parts;
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
+use ed25519_dalek::VerifyingKey;
+use jsonwebtoken::{Algorithm, DecodingKey, Validation};
 use std::sync::Arc;
+use std::time::SystemTime;
 use tokio_tungstenite::tungstenite::http::header::USER_AGENT;
 
 impl AuthScope {
@@ -51,14 +57,64 @@ impl FromRequestParts<Arc<ServerState>> for AuthContext {
                 let parts = auth_header_value
                     .split_once(' ')
                     .ok_or(StatusCode::UNAUTHORIZED)?;
-                if parts.0 != "Bearer" {
+                if parts.0 != "Token" {
                     tracing::error!("Invalid authorization header format");
                     return Err(StatusCode::UNAUTHORIZED);
                 }
                 let token = parts.1;
 
-                let Some(client) = state.clients.iter().find(|e| e.secret == token) else {
+                let token_data = jsonwebtoken::dangerous::insecure_decode::<Claims>(token)
+                    .map_err(|e| {
+                        tracing::error!("Invalid JWT token: {e}");
+                        StatusCode::UNAUTHORIZED
+                    })?;
+
+                let exp = token_data.claims.exp;
+
+                let now = SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)
+                    .map_err(|e| {
+                        tracing::error!("Failed to get current time: {e}");
+                        StatusCode::INTERNAL_SERVER_ERROR
+                    })?
+                    .as_secs() as usize;
+
+                if exp < now {
+                    tracing::error!("Token expired");
+                    return Err(StatusCode::UNAUTHORIZED);
+                }
+
+                let client_name = token_data.claims.sub;
+
+                let Some(client) = state.clients.iter().find(|e| e.name == client_name) else {
                     tracing::error!("Client with provided secret not found");
+                    return Err(StatusCode::UNAUTHORIZED);
+                };
+
+                let secret_file = client.secret_file.clone();
+                let public_key = {
+                    let file = secret_file;
+                    let key = std::fs::read_to_string(file).map_err(|e| {
+                        tracing::error!("Failed to read public key file: {e}");
+                        StatusCode::UNAUTHORIZED
+                    })?;
+                    let Ok(bytes) = STANDARD.decode(key.trim()) else {
+                        tracing::error!("Invalid public key format");
+                        return Err(StatusCode::UNAUTHORIZED);
+                    };
+                    let key: VerifyingKey = bytes
+                        .as_slice()
+                        .try_into()
+                        .map_err(|_| StatusCode::UNAUTHORIZED)?;
+                    DecodingKey::from_ed_der(key.as_bytes())
+                };
+
+                if let Err(e) = jsonwebtoken::decode::<Claims>(
+                    token,
+                    &public_key,
+                    &Validation::new(Algorithm::EdDSA),
+                ) {
+                    tracing::error!("Invalid JWT token: {e}");
                     return Err(StatusCode::UNAUTHORIZED);
                 };
 
