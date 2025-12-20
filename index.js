@@ -37,10 +37,10 @@ export async function run() {
     const options = {
       listeners: {
         stdout: (/** @type {string | Uint8Array<ArrayBufferLike>} */ data) => {
-          process.stdout.write(data);
+          core.info(data.toString());
         },
         stderr: (/** @type {string | Uint8Array<ArrayBufferLike>} */ data) => {
-          process.stderr.write(data);
+          core.error(data.toString());
         },
       },
       ignoreReturnCode: true,
