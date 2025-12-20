@@ -4,7 +4,7 @@ const { promises: fs } = require("fs");
 const path = require("path");
 const os = require("os");
 
-export async function run() {
+async function run() {
   try {
     const address = core.getInput("address", { required: true });
     const script = core.getInput("script", { required: true });
@@ -18,9 +18,10 @@ export async function run() {
       platform === "win32" ? ".exe" : ""
     }`;
 
-    core.info(`Platform: ${platform}-${arch}`);
-
-    const binaryPath = path.join("..", "bin", artifact);
+    const actionDir = path.resolve(__dirname, "..");
+    const binaryPath = path.join(actionDir, "bin", artifact);
+    
+    core.info(`Binary path: ${binaryPath}`);
 
     if (platform !== "win32") {
       await fs.chmod(binaryPath, 0o755);
@@ -48,3 +49,5 @@ export async function run() {
     process.exit(1);
   }
 }
+
+module.exports = { run };
