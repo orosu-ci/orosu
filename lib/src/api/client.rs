@@ -5,21 +5,21 @@ use crate::api::{
     ServerErrorResponse, ServerTaskNotification, StartTaskRequest, TaskLaunchStatus,
     UserAgentHeader,
 };
-use crate::client_key::{Claims, ClientKey};
+use crate::cryptography::{Claims, ClientKey};
+use crate::server_address::ServerAddress;
 use crate::tasks::TaskOutput;
 use anyhow::Context;
-use axum::http::Uri;
 use axum::http::header::{AUTHORIZATION, USER_AGENT};
-use ed25519_dalek::SigningKey;
 use ed25519_dalek::pkcs8::EncodePrivateKey;
+use ed25519_dalek::SigningKey;
 use futures_util::{SinkExt, StreamExt};
-use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
+use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use std::process::exit;
 use std::time::SystemTime;
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
-use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
 pub struct ApiClient {
@@ -27,7 +27,7 @@ pub struct ApiClient {
 }
 
 impl ApiClient {
-    pub async fn connect(endpoint: Uri, key: ClientKey) -> anyhow::Result<Self> {
+    pub async fn connect(endpoint: ServerAddress, key: ClientKey) -> anyhow::Result<Self> {
         let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)?
             .as_secs() as usize;

@@ -1,11 +1,6 @@
 use crate::arguments::CliArguments;
-use anyhow::Context;
-use base64::Engine;
-use base64::engine::general_purpose::STANDARD;
 use clap::Parser;
-use ed25519_dalek::SigningKey;
-use ed25519_dalek::ed25519::signature::rand_core::OsRng;
-use orosu::client_key::ClientKey;
+use orosu::cryptography::Keygen;
 use std::io;
 use std::io::Write;
 
@@ -28,21 +23,10 @@ fn main() -> anyhow::Result<()> {
         None => prompt_input("Name: ")?,
     };
 
-    let key = SigningKey::generate(&mut OsRng);
+    let keygen = Keygen::new(name);
 
-    let private_key = key.to_bytes();
-    let public_key = key.verifying_key().to_bytes();
-
-    let client_key = ClientKey {
-        client_name: name,
-        key: private_key.into(),
-    };
-
-    let private_key = rkyv::to_bytes::<rkyv::rancor::Error>(&client_key)
-        .context("failed to serialize client key")?;
-
-    let private_key = STANDARD.encode(private_key);
-    let public_key = STANDARD.encode(public_key);
+    let private_key = keygen.private_key_base64();
+    let public_key = keygen.public_key_base64();
 
     match arguments.private_key_output {
         Some(path) => {
