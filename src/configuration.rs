@@ -15,7 +15,7 @@ pub enum ListenConfiguration {
 }
 
 #[derive(Debug, Serialize, Deserialize, Eq, PartialEq, Default)]
-enum LogLevelConfiguration {
+pub enum LogLevelConfiguration {
     #[serde(rename = "debug")]
     Debug,
     #[serde(rename = "info")]
@@ -27,12 +27,23 @@ enum LogLevelConfiguration {
     Error,
 }
 
+impl From<LogLevelConfiguration> for tracing::Level {
+    fn from(value: LogLevelConfiguration) -> Self {
+        match value {
+            LogLevelConfiguration::Debug => tracing::Level::DEBUG,
+            LogLevelConfiguration::Info => tracing::Level::INFO,
+            LogLevelConfiguration::Warn => tracing::Level::WARN,
+            LogLevelConfiguration::Error => tracing::Level::ERROR,
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Configuration {
     #[serde(rename = "listen")]
     pub listen: ListenConfiguration,
     #[serde(rename = "log_level", default)]
-    log_level: LogLevelConfiguration,
+    pub log_level: LogLevelConfiguration,
     #[serde(rename = "whitelisted_ips")]
     pub ip_whitelist: Option<Vec<IpCidr>>,
     #[serde(rename = "blacklisted_ips")]
