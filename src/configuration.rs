@@ -128,7 +128,7 @@ blacklisted_ips:
   - "1.1.1.0/24"
 clients:
   - name: "my-client"
-    secret: "my-secret"
+    secret_file: "public.key"
     whitelisted_ips:
       - "127.0.0.1"
     blacklisted_ips:
@@ -153,7 +153,7 @@ clients:
         assert_eq!(configuration.clients[0].scripts[0].command[0], "echo");
         assert_eq!(
             configuration.clients[0].secret_file,
-            PathBuf::from("my-secret")
+            PathBuf::from("public.key")
         );
         assert_eq!(
             configuration.clients[0].whitelisted_ips,
