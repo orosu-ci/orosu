@@ -117,6 +117,23 @@ Homepage: https://orosu.dev
 Description: CI task remote executor
  Allows secure remote execution of predefined scripts via authenticated clients.
 
+Package: orosu
+Version: 0.1.9-1
+Architecture: arm64
+Maintainer: Ilya Nixan <nixan@nerdy.pro>
+Installed-Size: 3281
+Depends: libc6:arm64 (>= 2.39), systemd
+Filename: pool/main/orosu_0.1.9-1_arm64.deb
+Size: 1043208
+MD5sum: 052a4026a575021ec62b478845e0beda
+SHA1: 3887ca9fea65875c5c521ae3968ce31d2a20e672
+SHA256: 2464f28d9fa7872376a9ba638ca256932db4baf30db44c28d2dbc3ac77730f03
+Section: net
+Priority: optional
+Homepage: https://orosu.dev
+Description: CI task remote executor
+ Allows secure remote execution of predefined scripts via authenticated clients.
+
 Package: orosu-arm64
 Version: 0.1.0-1
 Architecture: arm64
