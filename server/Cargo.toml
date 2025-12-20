@@ -1,0 +1,42 @@
+[package]
+name = "orosu-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "CI task remote executor server"
+
+[dependencies]
+anyhow = "1.0.100"
+clap = "4.5.53"
+dotenvy = "0.15.7"
+orosu = { path = '../lib' }
+tokio = "1.48.0"
+tracing = "0.1.44"
+tracing-subscriber = "0.3.22"
+
+[package.metadata.deb]
+name = "orosu"
+maintainer = "Ilya Nixan <nixan@nerdy.pro>"
+copyright = "2025, Ilya Nixan <nixan@nerdy.pro>"
+license-file = ["../LICENSE-APACHE", "0"]
+extended-description = "Allows secure remote execution of predefined scripts via authenticated clients."
+depends = "$auto, systemd"
+section = "net"
+priority = "optional"
+conf-files = ["/etc/orosu/config.yaml"]
+maintainer-scripts = "debian/"
+assets = [
+    { source = 'target/release/orosu-server', dest = 'usr/bin/', mode = '755' },
+    { source = 'target/release/orosu-keygen', dest = 'usr/bin/', mode = '755' },
+    { source = '../config.example.yaml', dest = 'etc/orosu/config.yaml', mode = '644' }
+]
+
+[package.metadata.deb.systemd-units]
+unit-name = "orosu-server"
+unit-scripts = "debian/"
+
+[package.metadata.deb.variants.amd64]
+[package.metadata.deb.variants.arm64]

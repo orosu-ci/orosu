@@ -5,10 +5,10 @@ use crate::api::{
     ServerErrorResponse, ServerTaskNotification, StartTaskRequest, TaskLaunchStatus,
     UserAgentHeader,
 };
-use crate::client_key::{Claims, ClientKey};
+use crate::cryptography::{Claims, ClientKey};
+use crate::server_address::ServerAddress;
 use crate::tasks::TaskOutput;
 use anyhow::Context;
-use axum::http::Uri;
 use axum::http::header::{AUTHORIZATION, USER_AGENT};
 use ed25519_dalek::SigningKey;
 use ed25519_dalek::pkcs8::EncodePrivateKey;
@@ -27,7 +27,7 @@ pub struct ApiClient {
 }
 
 impl ApiClient {
-    pub async fn connect(endpoint: Uri, key: ClientKey) -> anyhow::Result<Self> {
+    pub async fn connect(endpoint: ServerAddress, key: ClientKey) -> anyhow::Result<Self> {
         let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)?
             .as_secs() as usize;

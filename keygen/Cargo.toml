@@ -1,0 +1,14 @@
+[package]
+name = "orosu-keygen"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "CI task remote executor keygen"
+
+[dependencies]
+anyhow = "1.0.100"
+clap = "4.5.53"
+orosu = { path = '../lib' }

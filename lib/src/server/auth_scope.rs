@@ -1,5 +1,5 @@
 use crate::api::UserAgentHeader;
-use crate::client_key::Claims;
+use crate::cryptography::Claims;
 use crate::server::{AuthContext, AuthScope, ServerState, WorkerAuthContext};
 use axum::Extension;
 use axum::extract::FromRequestParts;
