@@ -4,7 +4,7 @@ const { promises: fs } = require("fs");
 const path = require("path");
 const os = require("os");
 
-async function run() {
+export async function run() {
   const address = core.getInput("address", { required: true });
   const script = core.getInput("script", { required: true });
   const key = core.getInput("key", { required: true });
@@ -35,5 +35,3 @@ async function run() {
 
   await exec.exec(binaryPath, cmdArgs);
 }
-
-run();
