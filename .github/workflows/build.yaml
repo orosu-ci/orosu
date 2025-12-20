@@ -77,10 +77,17 @@ jobs:
       - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }} --locked
 
-      - name: Build DEB package
-        id: build_deb
+      - name: Build DEB server package
+        id: build_deb_server
         run: |
-          DEB_PATH=$(cargo deb --no-build --target ${{ matrix.target }} --variant ${{ matrix.arch }})
+          DEB_PATH=$(cargo deb --no-build --target ${{ matrix.target }} --variant ${{ matrix.arch }} -p orosu-server)
+          echo "deb_path=${DEB_PATH}" >> $GITHUB_OUTPUT
+          echo "Built package: ${DEB_PATH}"
+
+      - name: Build DEB client package
+        id: build_deb_client
+        run: |
+          DEB_PATH=$(cargo deb --no-build --target ${{ matrix.target }} --variant ${{ matrix.arch }} -p orosu-client)
           echo "deb_path=${DEB_PATH}" >> $GITHUB_OUTPUT
           echo "Built package: ${DEB_PATH}"
 
@@ -107,8 +114,15 @@ jobs:
       - name: Upload DEB artifact
         uses: actions/upload-artifact@v4
         with:
-          name: deb-${{ matrix.arch }}
-          path: ${{ steps.build_deb.outputs.deb_path }}
+          name: deb-server-${{ matrix.arch }}
+          path: ${{ steps.build_deb_server.outputs.deb_path }}
+          retention-days: 90
+
+      - name: Upload DEB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-client-${{ matrix.arch }}
+          path: ${{ steps.build_deb_client.outputs.deb_path }}
           retention-days: 90
 
   publish-repository:
@@ -149,39 +163,12 @@ jobs:
             artifacts/orosu-client-arm64/orosu-client-linux-arm64
             artifacts/orosu-keygen-amd64/orosu-keygen-linux-amd64
             artifacts/orosu-keygen-arm64/orosu-keygen-linux-arm64
-            artifacts/deb-amd64/*.deb
-            artifacts/deb-arm64/*.deb
+            artifacts/deb-server-amd64/*.deb
+            artifacts/deb-server-arm64/*.deb
+            artifacts/deb-client-amd64/*.deb
+            artifacts/deb-client-arm64/*.deb
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Checkout client repository
-        uses: actions/checkout@v4
-        with:
-          ref: action
-          path: action
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Update client repository
-        run: |
-          cd action
-          mkdir -p bin
-          rm -rf bin/*
-          cp ../artifacts/orosu-client-amd64/orosu-client-linux-amd64 bin/
-          cp ../artifacts/orosu-client-arm64/orosu-client-linux-arm64 bin/
-
-      - name: Create Pull Request
-        uses: peter-evans/create-pull-request@v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          path: action
-          branch: update-binaries-v${{ steps.version.outputs.version }}
-          commit-message: "chore: update binaries to v${{ steps.version.outputs.version }}"
-          title: "chore: update binaries to v${{ steps.version.outputs.version }}"
-          body: |
-            Automated update of binaries to version ${{ steps.version.outputs.version }}
-            
-            This PR was automatically created by the build workflow.
-          base: action
 
       - name: Checkout gh-pages branch
         uses: actions/checkout@v4
@@ -199,8 +186,10 @@ jobs:
 
       - name: Copy DEB packages to repository
         run: |
-          cp artifacts/deb-amd64/*.deb gh-pages/deb/pool/main/
-          cp artifacts/deb-arm64/*.deb gh-pages/deb/pool/main/
+          cp artifacts/deb-server-amd64/*.deb gh-pages/deb/pool/main/
+          cp artifacts/deb-server-arm64/*.deb gh-pages/deb/pool/main/
+          cp artifacts/deb-client-amd64/*.deb gh-pages/deb/pool/main/
+          cp artifacts/deb-client-arm64/*.deb gh-pages/deb/pool/main/
 
       - name: Install dpkg-dev for repository generation
         run: sudo apt-get update && sudo apt-get install -y dpkg-dev apt-utils
