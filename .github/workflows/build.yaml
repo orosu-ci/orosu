@@ -244,6 +244,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           path: gh-pages
+          delete-branch: true
           branch: update-deb-packages-v${{ steps.version.outputs.version }}
           commit-message: "chore: update DEB packages to v${{ steps.version.outputs.version }}"
           title: "chore: update DEB packages to v${{ steps.version.outputs.version }}"
