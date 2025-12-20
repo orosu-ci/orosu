@@ -5,16 +5,21 @@ use crate::api::{
     ServerErrorResponse, ServerTaskNotification, StartTaskRequest, TaskLaunchStatus,
     UserAgentHeader,
 };
+use crate::client_key::{Claims, ClientKey};
 use crate::tasks::TaskOutput;
 use anyhow::Context;
-use axum::http::Uri;
 use axum::http::header::{AUTHORIZATION, USER_AGENT};
+use axum::http::Uri;
+use ed25519_dalek::pkcs8::EncodePrivateKey;
+use ed25519_dalek::SigningKey;
 use futures_util::{SinkExt, StreamExt};
+use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use std::process::exit;
+use std::time::SystemTime;
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
-use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
 pub struct ApiClient {
@@ -22,7 +27,30 @@ pub struct ApiClient {
 }
 
 impl ApiClient {
-    pub async fn connect(endpoint: Uri, key: String) -> anyhow::Result<Self> {
+    pub async fn connect(endpoint: Uri, key: ClientKey) -> anyhow::Result<Self> {
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)?
+            .as_secs() as usize;
+
+        let encoding_key = {
+            let secret_key = key
+                .key
+                .as_slice()
+                .try_into()
+                .context("invalid key format")?;
+            let signing_key = SigningKey::from_bytes(secret_key)
+                .to_pkcs8_der()
+                .context("unable to encode signing key")?;
+            EncodingKey::from_ed_der(signing_key.as_bytes())
+        };
+        let header = Header::new(Algorithm::EdDSA);
+
+        let claims = Claims {
+            sub: key.client_name,
+            exp: now + 10, // 10-second expiration
+        };
+        let token = encode(&header, &claims, &encoding_key).context("cannot encode JWT")?;
+
         let user_agent_header = UserAgentHeader::default();
         let mut request = endpoint
             .clone()
@@ -30,7 +58,7 @@ impl ApiClient {
             .context("Cannot create request")?;
         request
             .headers_mut()
-            .insert(AUTHORIZATION, format!("Bearer {key}").parse()?);
+            .insert(AUTHORIZATION, format!("Token {token}").parse()?);
         request
             .headers_mut()
             .insert(USER_AGENT, user_agent_header.into());

@@ -16,6 +16,10 @@ path = "src/bin/server/main.rs"
 name = "orosu-client"
 path = "src/bin/client/main.rs"
 
+[[bin]]
+name = "orosu-keygen"
+path = "src/bin/keygen/main.rs"
+
 [dependencies]
 anyhow = "1.0.100"
 axum = { version = "0.8.7", features = ["ws"] }
@@ -36,6 +40,10 @@ bytes = "1.11.0"
 serde-saphyr = "0.0.11"
 cidr = { version = "0.3.2", features = ["no_unsafe", "serde"] }
 users = "0.11.0"
+ed25519-dalek = { version = "2.2.0", features = ["rand_core"] }
+base64 = "0.22.1"
+jsonwebtoken = { version = "10.2.0", features = ["rust_crypto"] }
+rkyv = "0.8.12"
 
 [package.metadata.deb]
 name = "orosu"

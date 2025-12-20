@@ -28,7 +28,7 @@ whitelisted_ips:
 # Keep the 'secret' values secure - they should match the credentials used in your CI/CD pipelines
 clients:
   - name: "my-client" # Name will be used in logs - replace with your client identifier
-    secret: "my-secret" # IMPORTANT: Change this to a strong, randomly generated secret
+    secret_file: "secrets/public.key" # IMPORTANT: Use orosu-keygen to generate a new secret key pair
 #   whitelisted_ips: # Optional: client-specific IP whitelist (takes precedence over global whitelist)
 #     - "127.0.0.1"
 #   blacklisted_ips: # Optional: client-specific IP blacklist (takes precedence over global blacklist)

@@ -6,3 +6,4 @@ pub mod configuration;
 mod script;
 pub mod server;
 pub mod tasks;
+pub mod client_key;

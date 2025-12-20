@@ -1,8 +1,12 @@
 use crate::arguments::CliArguments;
 use anyhow::Context;
 use axum::http::Uri;
+use base64::engine::general_purpose::STANDARD;
+use base64::Engine;
 use clap::Parser;
 use orosu::api::client::ApiClient;
+use orosu::client_key::ClientKey;
+use tracing::level_filters::LevelFilter;
 
 mod arguments;
 
@@ -13,9 +17,16 @@ async fn main() -> anyhow::Result<()> {
     let arguments = CliArguments::parse();
 
     tracing_subscriber::fmt()
-        .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
+        .with_max_level(LevelFilter::from_level(arguments.log_level.into()))
         .compact()
         .init();
+
+    let key = STANDARD
+        .decode(arguments.key)
+        .context("invalid key format")?;
+    let key = rkyv::from_bytes::<ClientKey, rkyv::rancor::Error>(&key)
+        .context("invalid key format")?
+        .into();
 
     let mut parts = Uri::try_from(&arguments.address)
         .context("invalid server address format")?
@@ -28,7 +39,7 @@ async fn main() -> anyhow::Result<()> {
     }
     let uri = Uri::from_parts(parts)?;
 
-    let client = ApiClient::connect(uri, arguments.key)
+    let client = ApiClient::connect(uri, key)
         .await
         .context("failed to connect to server")?;
 
