@@ -40,7 +40,7 @@ runs:
 
     - name: Install orosu-client
       shell: bash
-      run: sudo apt install -y orosu-client=${{ steps.version.outputs.version }}
+      run: sudo apt install -y orosu-client=${{ steps.version.outputs.version }}-1
 
     - name: Run orosu-client
       shell: bash
