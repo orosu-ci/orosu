@@ -31,16 +31,21 @@ runs:
         VERSION=$(grep '^version' $GITHUB_ACTION_PATH/Cargo.toml | head -1 | sed 's/.*"\(.*\)".*/\1/')
         echo "version=${VERSION}" >> $GITHUB_OUTPUT
 
-    - name: Add Orosu repository
-      shell: bash
-      run: |
-        curl -fsSL https://orosu.dev/deb/public.key | sudo gpg --dearmor -o /usr/share/keyrings/orosu.gpg
-        echo "deb [signed-by=/usr/share/keyrings/orosu.gpg] https://orosu.dev/deb stable main" | sudo tee /etc/apt/sources.list.d/orosu.list
-        sudo apt update
-
     - name: Install orosu-client
       shell: bash
-      run: sudo apt install -y orosu-client=${{ steps.version.outputs.version }}-1
+      run: |
+        INSTALLED_VERSION=$(dpkg-query -W -f='${Version}' orosu-client 2>/dev/null || echo "")
+        REQUIRED_VERSION="${{ steps.version.outputs.version }}-1"
+        if [ "$INSTALLED_VERSION" != "$REQUIRED_VERSION" ]; then
+          if [ -z "$INSTALLED_VERSION" ]; then
+            curl -fsSL https://orosu.dev/deb/public.key | sudo gpg --dearmor -o /usr/share/keyrings/orosu.gpg
+            echo "deb [signed-by=/usr/share/keyrings/orosu.gpg] https://orosu.dev/deb stable main" | sudo tee /etc/apt/sources.list.d/orosu.list
+            sudo apt update
+          fi
+          sudo apt install -y orosu-client=$REQUIRED_VERSION
+        else
+          echo "orosu-client $REQUIRED_VERSION already installed"
+        fi
 
     - name: Run orosu-client
       shell: bash
