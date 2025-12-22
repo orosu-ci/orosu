@@ -27,6 +27,10 @@ inputs:
     description: 'Script arguments (space-separated string, e.g. "arg1 arg2 arg3")'
     required: false
     default: ''
+  log_level:
+    description: 'Log level (default: info)'
+    required: false
+    default: 'info'
 
 runs:
   using: 'composite'
@@ -64,5 +68,6 @@ runs:
           --script "${{ inputs.script }}" \
           --key "${{ inputs.key }}" \
           --chunk-size "${{ inputs.chunk_size }}" \
+          --log-level "${{ inputs.log_level }}" \
           ${{ inputs.file && '--file ' || ''}}${{ inputs.file }} \
           ${{ inputs.arguments }}
