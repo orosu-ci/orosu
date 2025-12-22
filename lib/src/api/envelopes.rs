@@ -1,3 +1,4 @@
+use crate::api::file_chunk::FileChunk;
 use crate::api::{ServerErrorResponse, ServerTaskNotification, StartTaskRequest, TaskLaunchStatus};
 use crate::tasks::{TaskOutput, Timestamped};
 use bytes::Bytes;
@@ -62,6 +63,7 @@ where
     }
 }
 
+pub type FileChunkRequestEnvelope = RequestEnvelope<FileChunk>;
 pub type TaskLaunchStatusResponseEnvelope = ResponseEnvelope<TaskLaunchStatus, ServerErrorResponse>;
 pub type TaskEventResponseEnvelope =
     ResponseEnvelope<ServerTaskNotification<Timestamped<TaskOutput>, i32>, ServerErrorResponse>;

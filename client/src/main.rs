@@ -20,12 +20,14 @@ async fn main() -> anyhow::Result<()> {
     let key = ClientKey::from_string(arguments.key)?;
     let address = ServerAddress::from_string(arguments.address)?;
 
+    let files = arguments.file.unwrap_or_default();
+
     let client = ApiClient::connect(address, key)
         .await
         .context("failed to connect to server")?;
 
     client
-        .start_task(arguments.variables, arguments.script)
+        .start_task(arguments.variables, arguments.script, files)
         .await?;
 
     Ok(())

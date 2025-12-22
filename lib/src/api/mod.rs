@@ -1,8 +1,8 @@
 pub mod client;
 pub mod envelopes;
+pub mod file_chunk;
 mod user_agent_header;
 
-use crate::tasks::{TaskOutput, Timestamped};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -12,30 +12,24 @@ pub struct StartTaskRequest {
     pub script_name: String,
     #[serde(rename = "args")]
     pub arguments: Vec<String>,
+    #[serde(rename = "file")]
+    pub file: Option<FileAttachment>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct FileAttachment {
+    #[serde(rename = "hash")]
+    pub hash: Vec<u8>,
+    #[serde(rename = "size")]
+    pub size: usize,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum TaskLaunchStatus {
+    #[serde(rename = "awaiting_files")]
+    AwaitingFiles { offset: usize },
     #[serde(rename = "launched")]
     Launched { started_on: DateTime<Utc> },
-    #[serde(rename = "running")]
-    Running {
-        #[serde(rename = "started_on")]
-        started_on: DateTime<Utc>,
-        #[serde(rename = "output")]
-        output: Vec<Timestamped<TaskOutput>>,
-    },
-    #[serde(rename = "finished")]
-    Finished {
-        #[serde(rename = "started_on")]
-        started_on: DateTime<Utc>,
-        #[serde(rename = "finished_on")]
-        finished_on: DateTime<Utc>,
-        #[serde(rename = "exit_code")]
-        exit_code: i32,
-        #[serde(rename = "output")]
-        output: Vec<Timestamped<TaskOutput>>,
-    },
 }
 
 #[derive(Serialize, Deserialize, Debug)]

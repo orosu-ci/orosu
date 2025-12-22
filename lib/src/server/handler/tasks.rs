@@ -1,7 +1,10 @@
 use crate::api::envelopes::{
     RequestEnvelope, TaskEventResponseEnvelope, TaskLaunchStatusResponseEnvelope,
 };
-use crate::api::{ServerErrorResponse, ServerTaskNotification, StartTaskRequest, TaskLaunchStatus};
+use crate::api::file_chunk::FileChunk;
+use crate::api::{
+    FileAttachment, ServerErrorResponse, ServerTaskNotification, StartTaskRequest, TaskLaunchStatus,
+};
 use crate::client::Client;
 use crate::server::AuthContext;
 use crate::server::handler::TasksHandler;
@@ -13,9 +16,13 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum_client_ip::ClientIp;
 use futures_util::{SinkExt, StreamExt};
+use std::fs::File;
+use std::io::{Seek, SeekFrom, Write};
 use std::net::SocketAddr;
 use std::time::Duration;
+use tempfile::{NamedTempFile, TempDir};
 use tokio::time::timeout;
+use zip::ZipArchive;
 
 impl TasksHandler {
     pub async fn attach(
@@ -84,8 +91,9 @@ async fn handle_task_run_output(mut socket: WebSocket, client: Client) {
     let (mut sender, mut receiver) = socket.split();
 
     let arguments = start_task_message_payload.body.arguments;
-
+    let attachment = start_task_message_payload.body.file;
     let script_name = start_task_message_payload.body.script_name;
+
     let script = client.scripts.iter().find(|e| e.name == script_name);
 
     let Some(script) = script else {
@@ -98,13 +106,113 @@ async fn handle_task_run_output(mut socket: WebSocket, client: Client) {
         return;
     };
 
+    let attachment = match attachment {
+        None => None,
+        Some(attachment) => {
+            let mut output = NamedTempFile::with_suffix(".zip").unwrap();
+            let mut offset = 0;
+            let size = attachment.size;
+            let hash = attachment.hash;
+            let mut hasher = md5::Context::new();
+            while offset < size {
+                let chunk_message = TaskLaunchStatusResponseEnvelope::Success {
+                    body: TaskLaunchStatus::AwaitingFiles { offset },
+                };
+                _ = sender.send(Message::Binary(chunk_message.into())).await;
+                let Some(response) = receiver.next().await else {
+                    tracing::error!("Client disconnected during file transfer");
+                    _ = sender.send(Message::Close(None)).await;
+                    return;
+                };
+                let Ok(response) = response else {
+                    tracing::error!("Cannot deserialize file chunk message");
+                    _ = sender.send(Message::Close(None)).await;
+                    return;
+                };
+                let Message::Binary(chunk) = response else {
+                    tracing::error!("Cannot deserialize file chunk message");
+                    _ = sender.send(Message::Close(None)).await;
+                    return;
+                };
+                let Ok(chunk) = serde_json::from_slice::<RequestEnvelope<FileChunk>>(&chunk) else {
+                    tracing::error!("Cannot deserialize file chunk message from bytes");
+                    _ = sender.send(Message::Close(None)).await;
+                    return;
+                };
+                let body = chunk.body;
+                let chunk_offset = body.offset;
+                if chunk_offset != offset {
+                    tracing::error!("Unexpected chunk offset {chunk_offset}, expected {offset}");
+                    return;
+                }
+                output.write_all(&body.data).unwrap();
+                hasher.consume(&body.data);
+                offset += body.data.len();
+                tracing::debug!("Received attachment chunk with offset {chunk_offset}");
+            }
+            output.seek(SeekFrom::Start(0)).unwrap();
+            tracing::debug!(
+                "Finished attached file, saved into {}",
+                output.path().display()
+            );
+
+            let computed_hash = hasher.finalize().0.to_vec();
+            if computed_hash != hash {
+                tracing::error!("File hash mismatch");
+                let error_message = TaskLaunchStatusResponseEnvelope::Failure {
+                    error: ServerErrorResponse::CannotLaunchScript,
+                };
+                _ = sender.send(Message::Binary(error_message.into())).await;
+                _ = sender.send(Message::Close(None)).await;
+                return;
+            }
+            tracing::debug!("File hash validated successfully");
+
+            Some(output.into_file())
+        }
+    };
+
+    let directory = match attachment {
+        None => None,
+        Some(mut file) => {
+            let directory = TempDir::new().unwrap();
+            tracing::debug!(
+                "Created temporary directory for attached files: {}",
+                directory.path().display()
+            );
+
+            let mut archive = ZipArchive::new(&mut file).unwrap();
+            for i in 0..archive.len() {
+                let mut entry = archive.by_index(i).unwrap();
+                let output_path = directory.path().join(entry.name());
+
+                if entry.is_dir() {
+                    std::fs::create_dir_all(&output_path).unwrap();
+                } else {
+                    if let Some(parent) = output_path.parent() {
+                        std::fs::create_dir_all(parent).unwrap();
+                    }
+                    let mut outfile = File::create(&output_path).unwrap();
+                    std::io::copy(&mut entry, &mut outfile).unwrap();
+                }
+                tracing::debug!("Extracted: {}", output_path.display());
+            }
+            tracing::debug!(
+                "Successfully extracted archive to {}",
+                directory.path().display()
+            );
+
+            Some(directory)
+        }
+    };
+
     let task = Task::create(script.clone());
 
     let TaskLaunchResult {
         created_on,
         output,
         handler,
-    } = match task.run(arguments).await {
+    } = match task.run(arguments, directory).await {
         Ok(task) => task,
         Err(e) => {
             tracing::error!("Unable to launch script {}: {:?}", script_name, e);
