@@ -44,6 +44,8 @@ runs:
         INSTALLED_VERSION=$(dpkg-query -W -f='${Version}' orosu-client 2>/dev/null || echo "")
         REQUIRED_VERSION="${{ steps.version.outputs.version }}-1"
         if [ "$INSTALLED_VERSION" != "$REQUIRED_VERSION" ]; then
+          sudo apt-get update
+          sudo apt-get install -y curl gnupg ca-certificates
           if [ -z "$INSTALLED_VERSION" ]; then
             curl -fsSL https://packages.nerdy.pro/NerdyPro.gpg | sudo gpg --dearmor -o /usr/share/keyrings/nerdy-pro.gpg
             echo "deb [signed-by=/usr/share/keyrings/nerdy-pro.gpg] https://packages.nerdy.pro/ stable main" | sudo tee /etc/apt/sources.list.d/nerdy-pro.list
