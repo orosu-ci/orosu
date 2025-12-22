@@ -3,39 +3,41 @@ use crate::tasks::{TaskLaunchResult, TaskOutput, Timestamped};
 use std::collections::VecDeque;
 use tempfile::TempDir;
 use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::sync::{broadcast, watch};
+use tokio::sync::{mpsc, watch};
 
 pub struct Task {
     created_on: chrono::DateTime<chrono::Utc>,
     script: Script,
     exit_code_tx: watch::Sender<Option<Timestamped<i32>>>,
-    output_tx: broadcast::Sender<Timestamped<TaskOutput>>,
+    output_tx: mpsc::Sender<Timestamped<TaskOutput>>,
+    pub(crate) output_rx: mpsc::Receiver<Timestamped<TaskOutput>>,
 }
 
 impl Task {
     pub fn create(script: Script) -> Self {
         let created_on = chrono::Utc::now();
         let (exit_code_tx, _) = watch::channel(None);
-        let (output_tx, _) = broadcast::channel(32);
+        let (output_tx, output_rx) = mpsc::channel(128);
         Self {
             created_on,
             script,
             exit_code_tx,
             output_tx,
+            output_rx,
         }
     }
 
-    fn append_stdout<T: Into<String>>(tx: broadcast::Sender<Timestamped<TaskOutput>>, line: T) {
-        Self::append_output(tx, TaskOutput::Stdout(line.into()));
+    async fn append_stdout<T: Into<String>>(tx: mpsc::Sender<Timestamped<TaskOutput>>, line: T) {
+        Self::append_output(tx, TaskOutput::Stdout(line.into())).await;
     }
 
-    fn append_stderr<T: Into<String>>(tx: broadcast::Sender<Timestamped<TaskOutput>>, line: T) {
-        Self::append_output(tx, TaskOutput::Stderr(line.into()));
+    async fn append_stderr<T: Into<String>>(tx: mpsc::Sender<Timestamped<TaskOutput>>, line: T) {
+        Self::append_output(tx, TaskOutput::Stderr(line.into())).await;
     }
 
-    fn append_output(tx: broadcast::Sender<Timestamped<TaskOutput>>, output: TaskOutput) {
+    async fn append_output(tx: mpsc::Sender<Timestamped<TaskOutput>>, output: TaskOutput) {
         let event = Timestamped::now(output);
-        if let Err(e) = tx.send(event) {
+        if let Err(e) = tx.send(event).await {
             tracing::error!("Failed to send task output event: {e}");
         }
     }
@@ -149,7 +151,6 @@ impl Task {
         });
         Ok(TaskLaunchResult {
             created_on,
-            output: result_output_tx,
             handler,
         })
     }

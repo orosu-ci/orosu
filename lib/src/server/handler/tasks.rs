@@ -210,7 +210,6 @@ async fn handle_task_run_output(mut socket: WebSocket, client: Client) {
 
     let TaskLaunchResult {
         created_on,
-        output,
         handler,
     } = match task.run(arguments, directory).await {
         Ok(task) => task,
@@ -234,14 +233,14 @@ async fn handle_task_run_output(mut socket: WebSocket, client: Client) {
 
     tracing::info!("Starting task for script {}", script_name);
 
-    let mut rx = output.subscribe();
+    let mut rx = task.output_rx;
 
     let mut handler_fuse = handler;
     let exit_code = loop {
         tokio::select! {
             maybe_event = rx.recv() => {
                 match maybe_event {
-                    Ok(event) => {
+                    Some(event) => {
                         tracing::info!("Task event: {:?}", event);
                         let message = TaskEventResponseEnvelope::Success {
                             body: ServerTaskNotification::Output(event),
@@ -251,10 +250,7 @@ async fn handle_task_run_output(mut socket: WebSocket, client: Client) {
                             break None;
                         };
                     }
-                    Err(tokio::sync::broadcast::error::RecvError::Lagged(count)) => {
-                        tracing::warn!("Receiver lagged by {} messages", count);
-                    }
-                    Err(tokio::sync::broadcast::error::RecvError::Closed) => {
+                    None => {
                         tracing::warn!("Receiver was closed");
                     }
                 }
