@@ -19,6 +19,10 @@ inputs:
   file:
     description: 'Attached file to upload (newline delimited)'
     required: false
+  chunk_size:
+    description: 'Chunk size in bytes for file uploads (default: 1024)'
+    required: false
+    default: '1024'
   arguments:
     description: 'Script arguments (space-separated string, e.g. "arg1 arg2 arg3")'
     required: false
@@ -57,5 +61,6 @@ runs:
           --address "${{ inputs.address }}" \
           --script "${{ inputs.script }}" \
           --key "${{ inputs.key }}" \
+          --chunk-size "${{ inputs.chunk_size }}" \
           ${{ inputs.file && '--file ' || ''}}${{ inputs.file }} \
           ${{ inputs.arguments }}
