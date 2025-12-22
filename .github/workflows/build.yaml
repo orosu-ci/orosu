@@ -164,83 +164,17 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Checkout gh-pages branch
-        uses: actions/checkout@v4
+      - name: Upload and publish DEB packages
+        uses: orosu-ci/orosu@v0
         with:
-          ref: gh-pages
-          path: gh-pages
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Setup DEB repository structure
-        run: |
-          cd gh-pages
-          mkdir -p deb/pool/main
-          mkdir -p deb/dists/stable/main/binary-amd64
-          mkdir -p deb/dists/stable/main/binary-arm64
-
-      - name: Copy DEB packages to repository
-        run: |
-          cp artifacts/deb-server-amd64/*.deb gh-pages/deb/pool/main/
-          cp artifacts/deb-server-arm64/*.deb gh-pages/deb/pool/main/
-          cp artifacts/deb-client-amd64/*.deb gh-pages/deb/pool/main/
-          cp artifacts/deb-client-arm64/*.deb gh-pages/deb/pool/main/
-
-      - name: Install dpkg-dev for repository generation
-        run: sudo apt-get update && sudo apt-get install -y dpkg-dev apt-utils
-
-      - name: Import GPG key
-        run: |
-          echo "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
-
-      - name: Setup repository structure
-        run: |
-          cd gh-pages
-          mkdir -p deb/pool/main
-          mkdir -p deb/dists/stable/main/binary-{amd64,arm64}
-          cp ../artifacts/deb-*/*.deb deb/pool/main/
-
-
-      - name: Generate Packages and Release
-        run: |
-          cd gh-pages/deb
-          
-          # Packages files
-          dpkg-scanpackages --arch amd64 --multiversion pool/ > dists/stable/main/binary-amd64/Packages
-          gzip -k -f dists/stable/main/binary-amd64/Packages
-          
-          dpkg-scanpackages --arch arm64 --multiversion pool/ > dists/stable/main/binary-arm64/Packages
-          gzip -k -f dists/stable/main/binary-arm64/Packages
-          
-          # Release file
-          cd dists/stable
-          apt-ftparchive release . > Release
-
-      - name: Sign Release
-        run: |
-          cd gh-pages/deb/dists/stable
-          
-          echo "${{ secrets.GPG_PASSPHRASE }}" | gpg \
-            --batch --yes --pinentry-mode loopback --passphrase-fd 0 \
-            --armor \
-            --detach-sign --output Release.gpg Release
-          
-          echo "${{ secrets.GPG_PASSPHRASE }}" | gpg \
-            --batch --yes --pinentry-mode loopback --passphrase-fd 0 \
-            --armor \
-            --clearsign --output InRelease Release
-
-      - name: Export public GPG key
-        run: |
-          gpg --armor --export > gh-pages/deb/public.key
-
-      - name: Update major and minor tags
-        run: |
-          cd gh-pages
-          git add deb
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git commit -m "chore: update DEB packages to v${{ steps.version.outputs.version }}"
-          git push -f origin gh-pages
+          address: ${{ secrets.OROSU_HOST }}
+          key: ${{ secrets.OROSU_SECRET }}
+          script: deploy-deb
+          file: |
+            artifacts/deb-server-amd64/*.deb
+            artifacts/deb-server-arm64/*.deb
+            artifacts/deb-client-amd64/*.deb
+            artifacts/deb-client-arm64/*.deb
 
 
   update-version-tags:
