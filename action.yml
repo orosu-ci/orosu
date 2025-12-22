@@ -45,17 +45,28 @@ runs:
     - name: Install orosu-client
       shell: bash
       run: |
+        # Detect if we need sudo
+        if command -v sudo &> /dev/null && [ "$EUID" -ne 0 ]; then
+          SUDO="sudo"
+        else
+          SUDO=""
+        fi
+        
         INSTALLED_VERSION=$(dpkg-query -W -f='${Version}' orosu-client 2>/dev/null || echo "")
         REQUIRED_VERSION="${{ steps.version.outputs.version }}-1"
+        
+        
         if [ "$INSTALLED_VERSION" != "$REQUIRED_VERSION" ]; then
-          sudo apt-get update
-          sudo apt-get install -y curl gnupg ca-certificates
+          $SUDO apt-get update
+          $SUDO apt-get install -y curl gnupg ca-certificates
+        
           if [ -z "$INSTALLED_VERSION" ]; then
-            curl -fsSL https://packages.nerdy.pro/NerdyPro.gpg | sudo gpg --dearmor -o /usr/share/keyrings/nerdy-pro.gpg
-            echo "deb [signed-by=/usr/share/keyrings/nerdy-pro.gpg] https://packages.nerdy.pro/ stable main" | sudo tee /etc/apt/sources.list.d/nerdy-pro.list
-            sudo apt update
+            curl -fsSL https://packages.nerdy.pro/NerdyPro.gpg | $SUDO gpg --dearmor -o /usr/share/keyrings/nerdy-pro.gpg
+            echo "deb [signed-by=/usr/share/keyrings/nerdy-pro.gpg] https://packages.nerdy.pro/ stable main" | $SUDO tee /etc/apt/sources.list.d/nerdy-pro.list
+            $SUDO apt update
           fi
-          sudo apt install -y orosu-client=$REQUIRED_VERSION
+        
+          $SUDO apt install -y orosu-client=$REQUIRED_VERSION
         else
           echo "orosu-client $REQUIRED_VERSION already installed"
         fi
