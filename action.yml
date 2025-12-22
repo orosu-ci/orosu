@@ -63,11 +63,23 @@ runs:
     - name: Run orosu-client
       shell: bash
       run: |
+        FILE_ARGS=""
+          if [ -n "${{ inputs.file }}" ]; then
+            while IFS= read -r pattern; do
+              [ -z "$pattern" ] && continue
+              for file in $pattern; do
+                if [ -f "$file" ]; then
+                  FILE_ARGS="$FILE_ARGS --file $file"
+                fi
+            done
+          done <<< "${{ inputs.file }}"
+        fi
+        
         orosu-client \
           --address "${{ inputs.address }}" \
           --script "${{ inputs.script }}" \
           --key "${{ inputs.key }}" \
           --chunk-size "${{ inputs.chunk_size }}" \
           --log-level "${{ inputs.log_level }}" \
-          ${{ inputs.file && '--file ' || ''}}${{ inputs.file }} \
+          $FILE_ARGS \
           ${{ inputs.arguments }}
