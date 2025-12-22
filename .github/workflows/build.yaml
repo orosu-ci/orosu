@@ -7,21 +7,11 @@ env:
   PACKAGE_NAME: 'orosu-server'
 
 jobs:
-  build-deb:
-    runs-on: ubuntu-22.04
-    environment: production
-    strategy:
-      matrix:
-        include:
-          - arch: amd64
-            target: x86_64-unknown-linux-gnu
-            cross: false
-          - arch: arm64
-            target: aarch64-unknown-linux-gnu
-            cross: true
-
+  verify:
+    name: Verify version matches tag
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -38,6 +28,87 @@ jobs:
           fi
           echo "Version check passed: ${TAG_VERSION}"
 
+  build-deb:
+    needs: verify
+    runs-on: ubuntu-22.04
+    environment: production
+    strategy:
+      matrix:
+        include:
+          # Ubuntu 24.04 Noble (glibc 2.39)
+          - arch: amd64
+            target: x86_64-unknown-linux-gnu
+            cross: false
+            distro: noble
+            container: ubuntu:24.04
+          - arch: arm64
+            target: aarch64-unknown-linux-gnu
+            cross: true
+            distro: noble
+            container: ubuntu:24.04
+
+          # Ubuntu 22.04 Jammy (glibc 2.35)
+          - arch: amd64
+            target: x86_64-unknown-linux-gnu
+            cross: false
+            distro: jammy
+            container: ubuntu:22.04
+          - arch: arm64
+            target: aarch64-unknown-linux-gnu
+            cross: true
+            distro: jammy
+            container: ubuntu:22.04
+
+          # Ubuntu 20.04 Focal (glibc 2.31)
+          - arch: amd64
+            target: x86_64-unknown-linux-gnu
+            cross: false
+            distro: focal
+            container: ubuntu:20.04
+          - arch: arm64
+            target: aarch64-unknown-linux-gnu
+            cross: true
+            distro: focal
+            container: ubuntu:20.04
+
+          # Debian 12 Bookworm (glibc 2.36)
+          - arch: amd64
+            target: x86_64-unknown-linux-gnu
+            cross: false
+            distro: bookworm
+            container: debian:bookworm
+          - arch: arm64
+            target: aarch64-unknown-linux-gnu
+            cross: true
+            distro: bookworm
+            container: debian:bookworm
+
+          # Debian 11 Bullseye (glibc 2.31)
+          - arch: amd64
+            target: x86_64-unknown-linux-gnu
+            cross: false
+            distro: bullseye
+            container: debian:bullseye
+          - arch: arm64
+            target: aarch64-unknown-linux-gnu
+            cross: true
+            distro: bullseye
+            container: debian:bullseye
+
+    container:
+      image: ${{ matrix.container }}
+
+    steps:
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y curl git build-essential pkg-config libssl-dev ca-certificates
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -51,16 +122,15 @@ jobs:
             ~/.cargo/registry/index/
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
-          key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-${{ matrix.distro }}-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-${{ matrix.target }}-
+            ${{ runner.os }}-cargo-${{ matrix.distro }}-${{ matrix.target }}-
             ${{ runner.os }}-cargo-
 
       - name: Install cross-compilation tools
         if: matrix.cross
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+          apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
       - name: Install cargo-deb
         run: cargo install cargo-deb --locked || true
@@ -81,105 +151,82 @@ jobs:
         id: build_deb_server
         run: |
           DEB_PATH=$(cargo deb --no-build --target ${{ matrix.target }} --variant ${{ matrix.arch }} -p orosu-server)
-          echo "deb_path=${DEB_PATH}" >> $GITHUB_OUTPUT
-          echo "Built package: ${DEB_PATH}"
+          # Rename to include distro name
+          DEB_DIR=$(dirname "${DEB_PATH}")
+          DEB_FILE=$(basename "${DEB_PATH}")
+          NEW_DEB_FILE=$(echo "${DEB_FILE}" | sed "s/_\([^_]*\)_/_\1~${{ matrix.distro }}_/")
+          mv "${DEB_PATH}" "${DEB_DIR}/${NEW_DEB_FILE}"
+          echo "deb_path=${DEB_DIR}/${NEW_DEB_FILE}" >> $GITHUB_OUTPUT
+          echo "Built package: ${DEB_DIR}/${NEW_DEB_FILE}"
 
       - name: Build DEB client package
         id: build_deb_client
         run: |
           DEB_PATH=$(cargo deb --no-build --target ${{ matrix.target }} --variant ${{ matrix.arch }} -p orosu-client)
-          echo "deb_path=${DEB_PATH}" >> $GITHUB_OUTPUT
-          echo "Built package: ${DEB_PATH}"
+          # Rename to include distro name
+          DEB_DIR=$(dirname "${DEB_PATH}")
+          DEB_FILE=$(basename "${DEB_PATH}")
+          NEW_DEB_FILE=$(echo "${DEB_FILE}" | sed "s/_\([^_]*\)_/_\1~${{ matrix.distro }}_/")
+          mv "${DEB_PATH}" "${DEB_DIR}/${NEW_DEB_FILE}"
+          echo "deb_path=${DEB_DIR}/${NEW_DEB_FILE}" >> $GITHUB_OUTPUT
+          echo "Built package: ${DEB_DIR}/${NEW_DEB_FILE}"
 
       - name: Upload client binaries artifact
         uses: actions/upload-artifact@v4
         with:
-          name: orosu-client-${{ matrix.arch }}
+          name: orosu-client-${{ matrix.distro }}-${{ matrix.arch }}
           path: target/${{ matrix.target }}/release/orosu-client
           retention-days: 90
 
       - name: Upload keygen binaries artifact
         uses: actions/upload-artifact@v4
         with:
-          name: orosu-keygen-${{ matrix.arch }}
+          name: orosu-keygen-${{ matrix.distro }}-${{ matrix.arch }}
           path: target/${{ matrix.target }}/release/orosu-keygen
           retention-days: 90
 
-      - name: Upload DEB artifact
+      - name: Upload DEB server artifact
         uses: actions/upload-artifact@v4
         with:
-          name: deb-server-${{ matrix.arch }}
+          name: deb-server-${{ matrix.distro }}-${{ matrix.arch }}
           path: ${{ steps.build_deb_server.outputs.deb_path }}
           retention-days: 90
 
-      - name: Upload DEB artifact
+      - name: Upload DEB client artifact
         uses: actions/upload-artifact@v4
         with:
-          name: deb-client-${{ matrix.arch }}
+          name: deb-client-${{ matrix.distro }}-${{ matrix.arch }}
           path: ${{ steps.build_deb_client.outputs.deb_path }}
           retention-days: 90
 
-  publish-repository:
-    needs: build-deb
-    runs-on: ubuntu-latest
-    environment: production
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Get package version
-        id: version
+      - name: Rename binaries for release
         run: |
-          VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
-          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          mv target/${{ matrix.target }}/release/orosu-client target/${{ matrix.target }}/release/orosu-client-${{ matrix.distro }}-${{ matrix.arch }}
+          mv target/${{ matrix.target }}/release/orosu-keygen target/${{ matrix.target }}/release/orosu-keygen-${{ matrix.distro }}-${{ matrix.arch }}
 
-      - name: Download all packages
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts/
-
-      - name: Rename client binaries
-        run: |
-          mv artifacts/orosu-client-amd64/orosu-client artifacts/orosu-client-amd64/orosu-client-linux-amd64
-          mv artifacts/orosu-client-arm64/orosu-client artifacts/orosu-client-arm64/orosu-client-linux-arm64
-
-      - name: Rename keygen binaries
-        run: |
-          mv artifacts/orosu-keygen-amd64/orosu-keygen artifacts/orosu-keygen-amd64/orosu-keygen-linux-amd64
-          mv artifacts/orosu-keygen-arm64/orosu-keygen artifacts/orosu-keygen-arm64/orosu-keygen-linux-arm64
-
-      - name: Upload DEB packages to release
+      - name: Attach outputs to release
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            artifacts/orosu-client-amd64/orosu-client-linux-amd64
-            artifacts/orosu-client-arm64/orosu-client-linux-arm64
-            artifacts/orosu-keygen-amd64/orosu-keygen-linux-amd64
-            artifacts/orosu-keygen-arm64/orosu-keygen-linux-arm64
-            artifacts/deb-server-amd64/*.deb
-            artifacts/deb-server-arm64/*.deb
-            artifacts/deb-client-amd64/*.deb
-            artifacts/deb-client-arm64/*.deb
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            target/${{ matrix.target }}/release/orosu-client-${{ matrix.distro }}-${{ matrix.arch }}
+            target/${{ matrix.target }}/release/orosu-keygen-${{ matrix.distro }}-${{ matrix.arch }}
+            ${{ steps.build_deb_client.outputs.deb_path }}
+            ${{ steps.build_deb_server.outputs.deb_path }}
 
       - name: Upload and publish DEB packages
         uses: orosu-ci/orosu@v0
         with:
           address: ${{ secrets.OROSU_HOST }}
           key: ${{ secrets.OROSU_SECRET }}
-          script: deploy-deb
+          script: deploy-deb-to-repo
           chunk_size: 131072
+          arguments: ${{ matrix.distro }} ${{ matrix.arch }}
           file: |-
-            artifacts/deb-server-amd64/*.deb
-            artifacts/deb-server-arm64/*.deb
-            artifacts/deb-client-amd64/*.deb
-            artifacts/deb-client-arm64/*.deb
-
+            ${{ steps.build_deb_client.outputs.deb_path }}
+            ${{ steps.build_deb_server.outputs.deb_path }}
 
   update-version-tags:
-    needs: publish-repository
+    needs: build-deb
     runs-on: ubuntu-latest
     permissions:
       contents: write
