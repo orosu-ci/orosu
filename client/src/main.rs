@@ -27,7 +27,12 @@ async fn main() -> anyhow::Result<()> {
         .context("failed to connect to server")?;
 
     client
-        .start_task(arguments.variables, arguments.script, files)
+        .start_task(
+            arguments.variables,
+            arguments.script,
+            files,
+            arguments.chunk_size,
+        )
         .await?;
 
     Ok(())

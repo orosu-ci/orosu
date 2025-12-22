@@ -77,10 +77,11 @@ impl ApiClient {
         arguments: Vec<String>,
         script_name: String,
         files: Vec<String>,
+        chunk_size: usize,
     ) -> anyhow::Result<()> {
         let file_chunks = if !files.is_empty() {
             let archive = AttachedFiles::from_input(files);
-            Some(archive.chunks(1024)?)
+            Some(archive.chunks(chunk_size)?)
         } else {
             None
         };
