@@ -12,10 +12,10 @@ use crate::server_address::ServerAddress;
 use crate::tasks::TaskOutput;
 use anyhow::Context;
 use axum::http::header::{AUTHORIZATION, USER_AGENT};
-use ed25519_dalek::pkcs8::EncodePrivateKey;
 use ed25519_dalek::SigningKey;
+use ed25519_dalek::pkcs8::EncodePrivateKey;
 use futures_util::{SinkExt, StreamExt};
-use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
+use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 use std::process::exit;
 use std::time::SystemTime;
 use tokio::net::TcpStream;
@@ -123,8 +123,9 @@ impl ApiClient {
                             Some(chunks) => {
                                 let chunk = chunks.chunks.iter().find(|e| e.offset == offset);
                                 if let Some(chunk) = chunk {
-                                    let file_chunk_envelope =
-                                        FileChunkRequestEnvelope { body: chunk.clone() };
+                                    let file_chunk_envelope = FileChunkRequestEnvelope {
+                                        body: chunk.clone(),
+                                    };
                                     ws_stream
                                         .send(Message::Binary(file_chunk_envelope.into()))
                                         .await?;
