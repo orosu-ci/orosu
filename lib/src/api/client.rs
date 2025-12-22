@@ -2,7 +2,7 @@ use crate::api::envelopes::{
     FileChunkRequestEnvelope, TaskEventResponseEnvelope, TaskLaunchRequestEnvelope,
     TaskLaunchStatusResponseEnvelope,
 };
-use crate::api::file_chunk::{AttachedFiles, FileChunk, FileChunkResult};
+use crate::api::file_chunk::AttachedFiles;
 use crate::api::{
     FileAttachment, ServerErrorResponse, ServerTaskNotification, StartTaskRequest,
     TaskLaunchStatus, UserAgentHeader,
@@ -12,10 +12,10 @@ use crate::server_address::ServerAddress;
 use crate::tasks::TaskOutput;
 use anyhow::Context;
 use axum::http::header::{AUTHORIZATION, USER_AGENT};
-use ed25519_dalek::pkcs8::EncodePrivateKey;
 use ed25519_dalek::SigningKey;
+use ed25519_dalek::pkcs8::EncodePrivateKey;
 use futures_util::{SinkExt, StreamExt};
-use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
+use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 use std::process::exit;
 use std::time::SystemTime;
 use tokio::net::TcpStream;

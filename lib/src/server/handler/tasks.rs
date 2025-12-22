@@ -10,16 +10,14 @@ use crate::server::AuthContext;
 use crate::server::handler::TasksHandler;
 use crate::tasks::TaskLaunchResult;
 use crate::tasks::task::Task;
-use axum::Error;
 use axum::extract::ws::{Message, WebSocket};
 use axum::extract::{ConnectInfo, FromRequestParts, Request, WebSocketUpgrade};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum_client_ip::ClientIp;
 use futures_util::{SinkExt, StreamExt};
-use md5::Digest;
 use std::fs::File;
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::io::{Seek, SeekFrom, Write};
 use std::net::SocketAddr;
 use std::time::Duration;
 use tempfile::{NamedTempFile, TempDir};
@@ -186,18 +184,18 @@ async fn handle_task_run_output(mut socket: WebSocket, client: Client) {
             let mut archive = ZipArchive::new(&mut file).unwrap();
             for i in 0..archive.len() {
                 let mut entry = archive.by_index(i).unwrap();
-                let outpath = directory.path().join(entry.name());
+                let output_path = directory.path().join(entry.name());
 
                 if entry.is_dir() {
-                    std::fs::create_dir_all(&outpath).unwrap();
+                    std::fs::create_dir_all(&output_path).unwrap();
                 } else {
-                    if let Some(parent) = outpath.parent() {
+                    if let Some(parent) = output_path.parent() {
                         std::fs::create_dir_all(parent).unwrap();
                     }
-                    let mut outfile = File::create(&outpath).unwrap();
+                    let mut outfile = File::create(&output_path).unwrap();
                     std::io::copy(&mut entry, &mut outfile).unwrap();
                 }
-                tracing::debug!("Extracted: {}", outpath.display());
+                tracing::debug!("Extracted: {}", output_path.display());
             }
             tracing::debug!(
                 "Successfully extracted archive to {}",

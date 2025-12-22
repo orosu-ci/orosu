@@ -1,8 +1,6 @@
 use crate::script::Script;
 use crate::tasks::{TaskLaunchResult, TaskOutput, Timestamped};
 use std::collections::VecDeque;
-use std::fs::File;
-use std::path::PathBuf;
 use tempfile::TempDir;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::sync::{broadcast, watch};
