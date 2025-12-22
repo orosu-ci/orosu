@@ -37,11 +37,10 @@ impl AttachedFiles {
         let paths = {
             let mut result = Vec::new();
             for arg in input {
-                for paths in glob(&arg) {
-                    for path in paths {
-                        if let Ok(path) = path {
-                            result.push(path);
-                        }
+                let paths = glob(&arg);
+                for paths in paths {
+                    for path in paths.flatten() {
+                        result.push(path);
                     }
                 }
             }

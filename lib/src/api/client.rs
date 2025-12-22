@@ -12,10 +12,10 @@ use crate::server_address::ServerAddress;
 use crate::tasks::TaskOutput;
 use anyhow::Context;
 use axum::http::header::{AUTHORIZATION, USER_AGENT};
-use ed25519_dalek::SigningKey;
 use ed25519_dalek::pkcs8::EncodePrivateKey;
+use ed25519_dalek::SigningKey;
 use futures_util::{SinkExt, StreamExt};
-use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
+use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use std::process::exit;
 use std::time::SystemTime;
 use tokio::net::TcpStream;
@@ -85,9 +85,7 @@ impl ApiClient {
             None
         };
 
-        let file = file_chunks
-            .as_ref()
-            .map(|chunk| FileAttachment::from(chunk));
+        let file = file_chunks.as_ref().map(FileAttachment::from);
 
         let mut ws_stream = self.ws_stream.lock().await;
 
