@@ -96,14 +96,13 @@ impl Task {
         let mut child = match command.spawn() {
             Ok(child) => child,
             Err(e) => {
-                Self::append_stderr(output_tx, format!("Failed to start script: {e}"));
+                Self::append_stderr(output_tx, format!("Failed to start script: {e}")).await;
                 Self::set_exit_code(self.exit_code_tx.clone(), 1);
                 return Err(e.into());
             }
         };
 
         let handler_output_tx = output_tx.clone();
-        let result_output_tx = output_tx.clone();
         let handler_exit_code_tx = self.exit_code_tx.clone();
 
         let handler = tokio::spawn(async move {
@@ -119,7 +118,7 @@ impl Task {
                 let reader = BufReader::new(stdout);
                 let mut lines = reader.lines();
                 while let Ok(Some(line)) = lines.next_line().await {
-                    Self::append_stdout(stdout_output_tx.clone(), line);
+                    Self::append_stdout(stdout_output_tx.clone(), line).await;
                 }
             });
 
@@ -127,7 +126,7 @@ impl Task {
                 let reader = BufReader::new(stderr);
                 let mut lines = reader.lines();
                 while let Ok(Some(line)) = lines.next_line().await {
-                    Self::append_stderr(stderr_output_tx.clone(), line);
+                    Self::append_stderr(stderr_output_tx.clone(), line).await;
                 }
             });
 
@@ -136,13 +135,13 @@ impl Task {
             let exit_code = match child.wait().await {
                 Ok(status) => match status.code() {
                     None => {
-                        Self::append_stderr(output_tx, "Command terminated by signal");
+                        Self::append_stderr(output_tx, "Command terminated by signal").await;
                         -1
                     }
                     Some(code) => code,
                 },
                 Err(e) => {
-                    Self::append_stderr(output_tx, format!("Command failed: {e}"));
+                    Self::append_stderr(output_tx, format!("Command failed: {e}")).await;
                     -1
                 }
             };
