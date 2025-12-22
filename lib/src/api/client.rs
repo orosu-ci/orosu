@@ -12,10 +12,10 @@ use crate::server_address::ServerAddress;
 use crate::tasks::TaskOutput;
 use anyhow::Context;
 use axum::http::header::{AUTHORIZATION, USER_AGENT};
-use ed25519_dalek::SigningKey;
 use ed25519_dalek::pkcs8::EncodePrivateKey;
+use ed25519_dalek::SigningKey;
 use futures_util::{SinkExt, StreamExt};
-use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
+use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use std::process::exit;
 use std::time::SystemTime;
 use tokio::net::TcpStream;
@@ -77,10 +77,11 @@ impl ApiClient {
         arguments: Vec<String>,
         script_name: String,
         files: Vec<String>,
+        chunk_size: usize,
     ) -> anyhow::Result<()> {
         let file_chunks = if !files.is_empty() {
             let archive = AttachedFiles::from_input(files);
-            Some(archive.chunks(1024)?)
+            Some(archive.chunks(chunk_size)?)
         } else {
             None
         };
