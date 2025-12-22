@@ -34,16 +34,19 @@ impl From<&FileChunkResult> for FileAttachment {
 
 impl AttachedFiles {
     pub fn from_input(input: Vec<String>) -> Self {
+        tracing::debug!("Creating archive from input: {:?}", input);
         let paths = {
+            let input = input.iter().map(|e| e.trim()).filter(|e| !e.is_empty());
             let mut result = Vec::new();
             for arg in input {
-                let paths = glob(&arg);
+                let paths = glob(arg);
                 for paths in paths {
                     for path in paths.flatten() {
                         result.push(path);
                     }
                 }
             }
+            tracing::debug!("Archive paths: {:?}", result);
             result
         };
         Self { paths }

@@ -3,39 +3,41 @@ use crate::tasks::{TaskLaunchResult, TaskOutput, Timestamped};
 use std::collections::VecDeque;
 use tempfile::TempDir;
 use tokio::io::{AsyncBufReadExt, BufReader};
-use tokio::sync::{broadcast, watch};
+use tokio::sync::{mpsc, watch};
 
 pub struct Task {
     created_on: chrono::DateTime<chrono::Utc>,
     script: Script,
     exit_code_tx: watch::Sender<Option<Timestamped<i32>>>,
-    output_tx: broadcast::Sender<Timestamped<TaskOutput>>,
+    output_tx: mpsc::Sender<Timestamped<TaskOutput>>,
+    pub(crate) output_rx: mpsc::Receiver<Timestamped<TaskOutput>>,
 }
 
 impl Task {
     pub fn create(script: Script) -> Self {
         let created_on = chrono::Utc::now();
         let (exit_code_tx, _) = watch::channel(None);
-        let (output_tx, _) = broadcast::channel(32);
+        let (output_tx, output_rx) = mpsc::channel(128);
         Self {
             created_on,
             script,
             exit_code_tx,
             output_tx,
+            output_rx,
         }
     }
 
-    fn append_stdout<T: Into<String>>(tx: broadcast::Sender<Timestamped<TaskOutput>>, line: T) {
-        Self::append_output(tx, TaskOutput::Stdout(line.into()));
+    async fn append_stdout<T: Into<String>>(tx: mpsc::Sender<Timestamped<TaskOutput>>, line: T) {
+        Self::append_output(tx, TaskOutput::Stdout(line.into())).await;
     }
 
-    fn append_stderr<T: Into<String>>(tx: broadcast::Sender<Timestamped<TaskOutput>>, line: T) {
-        Self::append_output(tx, TaskOutput::Stderr(line.into()));
+    async fn append_stderr<T: Into<String>>(tx: mpsc::Sender<Timestamped<TaskOutput>>, line: T) {
+        Self::append_output(tx, TaskOutput::Stderr(line.into())).await;
     }
 
-    fn append_output(tx: broadcast::Sender<Timestamped<TaskOutput>>, output: TaskOutput) {
+    async fn append_output(tx: mpsc::Sender<Timestamped<TaskOutput>>, output: TaskOutput) {
         let event = Timestamped::now(output);
-        if let Err(e) = tx.send(event) {
+        if let Err(e) = tx.send(event).await {
             tracing::error!("Failed to send task output event: {e}");
         }
     }
@@ -94,14 +96,13 @@ impl Task {
         let mut child = match command.spawn() {
             Ok(child) => child,
             Err(e) => {
-                Self::append_stderr(output_tx, format!("Failed to start script: {e}"));
+                Self::append_stderr(output_tx, format!("Failed to start script: {e}")).await;
                 Self::set_exit_code(self.exit_code_tx.clone(), 1);
                 return Err(e.into());
             }
         };
 
         let handler_output_tx = output_tx.clone();
-        let result_output_tx = output_tx.clone();
         let handler_exit_code_tx = self.exit_code_tx.clone();
 
         let handler = tokio::spawn(async move {
@@ -117,7 +118,7 @@ impl Task {
                 let reader = BufReader::new(stdout);
                 let mut lines = reader.lines();
                 while let Ok(Some(line)) = lines.next_line().await {
-                    Self::append_stdout(stdout_output_tx.clone(), line);
+                    Self::append_stdout(stdout_output_tx.clone(), line).await;
                 }
             });
 
@@ -125,7 +126,7 @@ impl Task {
                 let reader = BufReader::new(stderr);
                 let mut lines = reader.lines();
                 while let Ok(Some(line)) = lines.next_line().await {
-                    Self::append_stderr(stderr_output_tx.clone(), line);
+                    Self::append_stderr(stderr_output_tx.clone(), line).await;
                 }
             });
 
@@ -134,13 +135,13 @@ impl Task {
             let exit_code = match child.wait().await {
                 Ok(status) => match status.code() {
                     None => {
-                        Self::append_stderr(output_tx, "Command terminated by signal");
+                        Self::append_stderr(output_tx, "Command terminated by signal").await;
                         -1
                     }
                     Some(code) => code,
                 },
                 Err(e) => {
-                    Self::append_stderr(output_tx, format!("Command failed: {e}"));
+                    Self::append_stderr(output_tx, format!("Command failed: {e}")).await;
                     -1
                 }
             };
@@ -149,7 +150,6 @@ impl Task {
         });
         Ok(TaskLaunchResult {
             created_on,
-            output: result_output_tx,
             handler,
         })
     }
