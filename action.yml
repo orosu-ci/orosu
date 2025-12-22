@@ -1,6 +1,6 @@
 
 name: 'Run Orosu Client'
-description: 'Install and run orosu-client with specified parameters'
+description: 'Execute remote scripts on Orosu server with file upload capabilities'
 
 branding:
   icon: 'terminal'
@@ -8,23 +8,23 @@ branding:
 
 inputs:
   address:
-    description: 'Orosu server address'
+    description: 'Orosu server address. Must be a valid websocket URL, e.g. wss://host:port/path or ws://host:port/path'
     required: true
   key:
-    description: 'Authentication key'
+    description: 'Authentication key. Can be generated on the server using orosu-keygen. Private key is required.'
     required: true
   script:
-    description: 'Script to execute'
+    description: 'Script to execute. Should be configured on the server.'
     required: true
   file:
-    description: 'Attached file to upload (newline delimited)'
+    description: 'Attached file to upload (newline delimited). The file will be accessible in the script as ATTACHMENTS_DIR environment variable.'
     required: false
   chunk_size:
-    description: 'Chunk size in bytes for file uploads (default: 65536)'
+    description: 'Chunk size in bytes for file uploads (default: 65536).'
     required: false
     default: '65536'
   arguments:
-    description: 'Script arguments (space-separated string, e.g. "arg1 arg2 arg3")'
+    description: 'Script arguments (space-separated string, e.g. "arg1 arg2 arg3"). These arguments will be passed to the script as $1, $2, etc.'
     required: false
     default: ''
   log_level:
