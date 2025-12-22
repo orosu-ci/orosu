@@ -20,9 +20,9 @@ inputs:
     description: 'Attached file to upload (newline delimited)'
     required: false
   chunk_size:
-    description: 'Chunk size in bytes for file uploads (default: 1024)'
+    description: 'Chunk size in bytes for file uploads (default: 65536)'
     required: false
-    default: '1024'
+    default: '65536'
   arguments:
     description: 'Script arguments (space-separated string, e.g. "arg1 arg2 arg3")'
     required: false
