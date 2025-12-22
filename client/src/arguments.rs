@@ -14,7 +14,7 @@ pub struct CliArguments {
     pub retries: Option<u8>,
     #[clap(short, long, default_value = "info")]
     pub log_level: LogLevelConfiguration,
-    #[clap(short, long)]
+    #[clap(short, long, value_delimiter = '\n')]
     pub file: Option<Vec<String>>,
     #[clap(short, long, default_value_t = 1024)]
     pub chunk_size: usize,
