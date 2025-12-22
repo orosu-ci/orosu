@@ -39,7 +39,7 @@ impl AttachedFiles {
             let input = input.iter().map(|e| e.trim()).filter(|e| !e.is_empty());
             let mut result = Vec::new();
             for arg in input {
-                let paths = glob(&arg);
+                let paths = glob(arg);
                 for paths in paths {
                     for path in paths.flatten() {
                         result.push(path);
