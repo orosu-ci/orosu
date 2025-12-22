@@ -171,6 +171,7 @@ jobs:
           key: ${{ secrets.OROSU_SECRET }}
           script: deploy-deb
           chunk_size: 131072
+          log_level: debug
           file: |-
             artifacts/deb-server-amd64/*.deb
             artifacts/deb-server-arm64/*.deb
