@@ -40,10 +40,12 @@ impl AttachedFiles {
             let mut result = Vec::new();
             for arg in input {
                 let paths = glob(arg);
-                for paths in paths {
-                    for path in paths.flatten() {
-                        result.push(path);
-                    }
+                let Ok(paths) = paths else {
+                    tracing::warn!("Cannot glob path: {}", arg);
+                    continue;
+                };
+                for path in paths.flatten() {
+                    result.push(path);
                 }
             }
             tracing::debug!("Archive paths: {:?}", result);
