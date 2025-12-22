@@ -2,9 +2,7 @@ use crate::api::envelopes::{
     RequestEnvelope, TaskEventResponseEnvelope, TaskLaunchStatusResponseEnvelope,
 };
 use crate::api::file_chunk::FileChunk;
-use crate::api::{
-    FileAttachment, ServerErrorResponse, ServerTaskNotification, StartTaskRequest, TaskLaunchStatus,
-};
+use crate::api::{ServerErrorResponse, ServerTaskNotification, StartTaskRequest, TaskLaunchStatus};
 use crate::client::Client;
 use crate::server::AuthContext;
 use crate::server::handler::TasksHandler;
