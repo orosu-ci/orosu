@@ -16,6 +16,6 @@ pub struct CliArguments {
     pub log_level: LogLevelConfiguration,
     #[clap(short, long, value_delimiter = '\n')]
     pub file: Option<Vec<String>>,
-    #[clap(short, long, default_value_t = 1024)]
+    #[clap(short, long, default_value_t = 65536)]
     pub chunk_size: usize,
 }
