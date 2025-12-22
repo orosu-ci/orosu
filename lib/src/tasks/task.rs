@@ -68,8 +68,10 @@ impl Task {
         if !arguments.is_empty() {
             command.args(arguments);
         }
-        if let Some(attachments) = attachments {
-            command.env("ATTACHMENTS_DIR", attachments.path().display().to_string());
+        let attachments_path = attachments.as_ref().map(|a| a.path().to_path_buf());
+
+        if let Some(ref path) = attachments_path {
+            command.env("ATTACHMENTS_DIR", path);
         }
 
         #[cfg(target_os = "linux")]
@@ -103,6 +105,8 @@ impl Task {
         let handler_exit_code_tx = self.exit_code_tx.clone();
 
         let handler = tokio::spawn(async move {
+            let _attachments_guard = attachments;
+
             let stdout = child.stdout.take().unwrap();
             let stderr = child.stderr.take().unwrap();
 
