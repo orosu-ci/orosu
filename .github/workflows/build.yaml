@@ -170,6 +170,7 @@ jobs:
           address: ${{ secrets.OROSU_HOST }}
           key: ${{ secrets.OROSU_SECRET }}
           script: deploy-deb
+          chunk_size: 131072
           file: |
             artifacts/deb-server-amd64/*.deb
             artifacts/deb-server-arm64/*.deb
