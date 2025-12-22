@@ -168,7 +168,7 @@ async fn handle_task_run_output(mut socket: WebSocket, client: Client) {
             }
             tracing::debug!("File hash validated successfully");
 
-            Some(output.into_file())
+            Some(output)
         }
     };
 
