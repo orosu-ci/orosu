@@ -1,6 +1,9 @@
 use crate::script::Script;
 use crate::tasks::{TaskLaunchResult, TaskOutput, Timestamped};
 use std::collections::VecDeque;
+use std::fs::File;
+use std::path::PathBuf;
+use tempfile::TempDir;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::sync::{broadcast, watch};
 
@@ -46,7 +49,11 @@ impl Task {
         }
     }
 
-    pub async fn run(&self, arguments: Vec<String>) -> anyhow::Result<TaskLaunchResult> {
+    pub async fn run(
+        &self,
+        arguments: Vec<String>,
+        attachments: Option<TempDir>,
+    ) -> anyhow::Result<TaskLaunchResult> {
         let created_on = self.created_on;
         let output_tx = self.output_tx.clone();
         let script = self.script.clone();
@@ -62,6 +69,9 @@ impl Task {
         }
         if !arguments.is_empty() {
             command.args(arguments);
+        }
+        if let Some(attachments) = attachments {
+            command.env("ATTACHMENTS_DIR", attachments.path().display().to_string());
         }
 
         #[cfg(target_os = "linux")]

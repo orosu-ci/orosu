@@ -3,6 +3,7 @@ use crate::tasks::{TaskOutput, Timestamped};
 use bytes::Bytes;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use crate::api::file_chunk::FileChunk;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RequestEnvelope<T> {
@@ -62,6 +63,7 @@ where
     }
 }
 
+pub type FileChunkRequestEnvelope = RequestEnvelope<FileChunk>;
 pub type TaskLaunchStatusResponseEnvelope = ResponseEnvelope<TaskLaunchStatus, ServerErrorResponse>;
 pub type TaskEventResponseEnvelope =
     ResponseEnvelope<ServerTaskNotification<Timestamped<TaskOutput>, i32>, ServerErrorResponse>;

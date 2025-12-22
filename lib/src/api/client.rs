@@ -1,25 +1,27 @@
 use crate::api::envelopes::{
-    TaskEventResponseEnvelope, TaskLaunchRequestEnvelope, TaskLaunchStatusResponseEnvelope,
+    FileChunkRequestEnvelope, TaskEventResponseEnvelope, TaskLaunchRequestEnvelope,
+    TaskLaunchStatusResponseEnvelope,
 };
+use crate::api::file_chunk::{AttachedFiles, FileChunk, FileChunkResult};
 use crate::api::{
-    ServerErrorResponse, ServerTaskNotification, StartTaskRequest, TaskLaunchStatus,
-    UserAgentHeader,
+    FileAttachment, ServerErrorResponse, ServerTaskNotification, StartTaskRequest,
+    TaskLaunchStatus, UserAgentHeader,
 };
 use crate::cryptography::{Claims, ClientKey};
 use crate::server_address::ServerAddress;
 use crate::tasks::TaskOutput;
 use anyhow::Context;
 use axum::http::header::{AUTHORIZATION, USER_AGENT};
-use ed25519_dalek::SigningKey;
 use ed25519_dalek::pkcs8::EncodePrivateKey;
+use ed25519_dalek::SigningKey;
 use futures_util::{SinkExt, StreamExt};
-use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
+use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use std::process::exit;
 use std::time::SystemTime;
 use tokio::net::TcpStream;
 use tokio::sync::Mutex;
-use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+use tokio_tungstenite::tungstenite::{Error, Message};
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 
 pub struct ApiClient {
@@ -74,53 +76,70 @@ impl ApiClient {
         &self,
         arguments: Vec<String>,
         script_name: String,
+        files: Vec<String>,
     ) -> anyhow::Result<()> {
+        let file_chunks = if !files.is_empty() {
+            let archive = AttachedFiles::from_input(files);
+            Some(archive.chunks(1024)?)
+        } else {
+            None
+        };
+
+        let file = file_chunks
+            .as_ref()
+            .map(|chunk| FileAttachment::from(chunk));
+
         let mut ws_stream = self.ws_stream.lock().await;
 
         let start_task_request = TaskLaunchRequestEnvelope {
             body: StartTaskRequest {
                 script_name,
                 arguments,
+                file,
             },
         };
         ws_stream
             .send(Message::Binary(start_task_request.into()))
             .await?;
 
-        let Some(response) = ws_stream.next().await else {
-            anyhow::bail!("Server did not respond")
-        };
-        let response = response?;
-
-        let Message::Binary(response_bytes) = response else {
-            anyhow::bail!("Server did not respond with a valid response, got {response}")
-        };
-
-        let response: TaskLaunchStatusResponseEnvelope = response_bytes.into();
-
-        match response {
-            TaskLaunchStatusResponseEnvelope::Success { body, .. } => {
-                match body {
-                    TaskLaunchStatus::Launched { .. } => {
-                        // do nothing
+        loop {
+            let response = ws_stream.next().await;
+            let Some(response) = response else {
+                anyhow::bail!("Server did not respond")
+            };
+            let response = response?;
+            let Message::Binary(response_bytes) = response else {
+                anyhow::bail!("Server did not respond with a valid response, got {response}")
+            };
+            let response: TaskLaunchStatusResponseEnvelope = response_bytes.into();
+            match response {
+                TaskLaunchStatusResponseEnvelope::Success { body, .. } => match body {
+                    TaskLaunchStatus::AwaitingFiles { offset, .. } => {
+                        match file_chunks.as_ref() {
+                            None => {
+                                ws_stream.send(Message::Close(None)).await?;
+                                anyhow::bail!("No files were attached to the task");
+                            }
+                            Some(chunks) => {
+                                let chunk = chunks.chunks.iter().find(|e| e.offset == offset);
+                                if let Some(chunk) = chunk {
+                                    let file_chunk_envelope =
+                                        FileChunkRequestEnvelope { body: chunk.clone() };
+                                    ws_stream
+                                        .send(Message::Binary(file_chunk_envelope.into()))
+                                        .await?;
+                                } else {
+                                    ws_stream.send(Message::Close(None)).await?;
+                                    anyhow::bail!("Chunk not found for offset {offset}");
+                                }
+                            }
+                        };
                     }
-                    TaskLaunchStatus::Running { output, .. } => {
-                        for line in output {
-                            line.value.print();
-                        }
-                    }
-                    TaskLaunchStatus::Finished {
-                        output, exit_code, ..
-                    } => {
-                        for line in output {
-                            line.value.print();
-                        }
-                        exit(exit_code);
-                    }
-                }
+                    TaskLaunchStatus::Launched { .. } => break,
+                },
+                TaskLaunchStatusResponseEnvelope::Failure { error, .. } => error.panic(),
             }
-            TaskLaunchStatusResponseEnvelope::Failure { error, .. } => error.panic(),
-        };
+        }
 
         while let Some(event) = ws_stream.next().await {
             let event = event?;
