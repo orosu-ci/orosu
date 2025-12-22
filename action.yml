@@ -16,6 +16,13 @@ inputs:
   script:
     description: 'Script to execute'
     required: true
+  file:
+    description: 'Attached file to upload (newline delimited)'
+    required: false
+  chunk_size:
+    description: 'Chunk size in bytes for file uploads (default: 1024)'
+    required: false
+    default: '1024'
   arguments:
     description: 'Script arguments (space-separated string, e.g. "arg1 arg2 arg3")'
     required: false
@@ -38,8 +45,8 @@ runs:
         REQUIRED_VERSION="${{ steps.version.outputs.version }}-1"
         if [ "$INSTALLED_VERSION" != "$REQUIRED_VERSION" ]; then
           if [ -z "$INSTALLED_VERSION" ]; then
-            curl -fsSL https://orosu.dev/deb/public.key | sudo gpg --dearmor -o /usr/share/keyrings/orosu.gpg
-            echo "deb [signed-by=/usr/share/keyrings/orosu.gpg] https://orosu.dev/deb stable main" | sudo tee /etc/apt/sources.list.d/orosu.list
+            curl -fsSL https://packages.nerdy.pro/NerdyPro.gpg | sudo gpg --dearmor -o /usr/share/keyrings/nerdy-pro.gpg
+            echo "deb [signed-by=/usr/share/keyrings/nerdy-pro.gpg] https://packages.nerdy.pro/ stable main" | sudo tee /etc/apt/sources.list.d/nerdy-pro.list
             sudo apt update
           fi
           sudo apt install -y orosu-client=$REQUIRED_VERSION
@@ -54,4 +61,6 @@ runs:
           --address "${{ inputs.address }}" \
           --script "${{ inputs.script }}" \
           --key "${{ inputs.key }}" \
+          --chunk-size "${{ inputs.chunk_size }}" \
+          ${{ inputs.file && '--file ' || ''}}${{ inputs.file }} \
           ${{ inputs.arguments }}
