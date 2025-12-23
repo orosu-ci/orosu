@@ -213,6 +213,28 @@ jobs:
             ${{ steps.build_deb_client.outputs.deb_path }}
             ${{ steps.build_deb_server.outputs.deb_path }}
 
+  deploy-packages:
+    needs: build-deb
+    runs-on: ubuntu-latest
+    environment: production
+    strategy:
+      matrix:
+        distro: [noble, jammy, focal, bookworm, bullseye]
+        arch: [amd64, arm64]
+
+    steps:
+      - name: Download DEB server artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: deb-server-${{ matrix.distro }}-${{ matrix.arch }}
+          path: ./packages
+
+      - name: Download DEB client artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: deb-client-${{ matrix.distro }}-${{ matrix.arch }}
+          path: ./packages
+
       - name: Upload and publish DEB packages
         uses: orosu-ci/orosu@v0
         with:
@@ -222,11 +244,10 @@ jobs:
           chunk_size: 131072
           arguments: ${{ matrix.distro }} ${{ matrix.arch }}
           file: |-
-            ${{ steps.build_deb_client.outputs.deb_path }}
-            ${{ steps.build_deb_server.outputs.deb_path }}
+            packages/*.deb
 
   update-version-tags:
-    needs: build-deb
+    needs: deploy-packages
     runs-on: ubuntu-latest
     permissions:
       contents: write
