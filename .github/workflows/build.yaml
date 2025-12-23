@@ -59,18 +59,6 @@ jobs:
             distro: jammy
             container: ubuntu:22.04
 
-          # Ubuntu 20.04 Focal (glibc 2.31)
-          - arch: amd64
-            target: x86_64-unknown-linux-gnu
-            cross: false
-            distro: focal
-            container: ubuntu:20.04
-          - arch: arm64
-            target: aarch64-unknown-linux-gnu
-            cross: true
-            distro: focal
-            container: ubuntu:20.04
-
           # Debian 12 Bookworm (glibc 2.36)
           - arch: amd64
             target: x86_64-unknown-linux-gnu
@@ -222,7 +210,7 @@ jobs:
     environment: production
     strategy:
       matrix:
-        distro: [noble, jammy, focal, bookworm, bullseye]
+        distro: [noble, jammy, bookworm, bullseye]
         arch: [amd64, arm64]
 
     steps:
