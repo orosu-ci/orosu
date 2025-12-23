@@ -97,6 +97,9 @@ jobs:
 
     container:
       image: ${{ matrix.container }}
+      env:
+        DEBIAN_FRONTEND: noninteractive
+        TZ: UTC
 
     steps:
       - name: Install dependencies
