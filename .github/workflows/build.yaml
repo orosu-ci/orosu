@@ -46,7 +46,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y curl git build-essential pkg-config libssl-dev ca-certificates
+          sudo apt-get install -y curl git build-essential pkg-config libssl-dev ca-certificates musl-tools
 
       - name: Checkout
         uses: actions/checkout@v4
