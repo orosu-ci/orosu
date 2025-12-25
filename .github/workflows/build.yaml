@@ -53,8 +53,6 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
 
       - name: Cache cargo dependencies
         uses: actions/cache@v4
@@ -69,8 +67,11 @@ jobs:
             ${{ runner.os }}-cargo-${{ matrix.distro }}-${{ matrix.target }}-
             ${{ runner.os }}-cargo-
 
+      - name: Install cross
+        run: cargo install cross --locked || true
+
       - name: Install cargo-deb
-        run: cargo install cargo-deb cross --locked || true
+        run: cross install cargo-deb --locked || true
 
       - name: Build release binary
         run: cross build --release --target ${{ matrix.target }} --locked
@@ -78,19 +79,14 @@ jobs:
       - name: Build DEB server package
         id: build_deb_server
         run: |
-          DEB_PATH=$(cargo deb --no-build --target ${{ matrix.target }} --variant ${{ matrix.arch }} -p orosu-server)
-          # Rename to include distro name
-          DEB_DIR=$(dirname "${DEB_PATH}")
-          DEB_FILE=$(basename "${DEB_PATH}")
-          NEW_DEB_FILE=$(echo "${DEB_FILE}" | sed "s/_\([^_]*\)_/_\1~${{ matrix.distro }}_/")
-          mv "${DEB_PATH}" "${DEB_DIR}/${NEW_DEB_FILE}"
-          echo "deb_path=${DEB_DIR}/${NEW_DEB_FILE}" >> $GITHUB_OUTPUT
-          echo "Built package: ${DEB_DIR}/${NEW_DEB_FILE}"
+          DEB_PATH=$(cross deb --no-build --target ${{ matrix.target }} -p orosu-server)
+          echo "deb_path=${DEB_PATH}" >> $GITHUB_OUTPUT
+          echo "Built package: ${DEB_PATH}"
 
       - name: Build DEB client package
         id: build_deb_client
         run: |
-          DEB_PATH=$(cargo deb --no-build --target ${{ matrix.target }} -p orosu-client)
+          DEB_PATH=$(cross deb --no-build --target ${{ matrix.target }} -p orosu-client)
           echo "deb_path=${DEB_PATH}" >> $GITHUB_OUTPUT
           echo "Built package: ${DEB_PATH}"
 
