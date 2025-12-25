@@ -37,8 +37,10 @@ jobs:
         include:
           - arch: amd64
             target: x86_64-unknown-linux-musl
+            cross: false
           - arch: arm64
             target: aarch64-unknown-linux-musl
+            cross: true
 
     steps:
       - name: Install dependencies
@@ -53,6 +55,8 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ matrix.target }}
 
       - name: Cache cargo dependencies
         uses: actions/cache@v4
@@ -67,26 +71,28 @@ jobs:
             ${{ runner.os }}-cargo-${{ matrix.distro }}-${{ matrix.target }}-
             ${{ runner.os }}-cargo-
 
-      - name: Install cross
-        run: cargo install cross --locked || true
+      - name: Install cross-compilation tools
+        if: matrix.cross
+        run: |
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
 
       - name: Install cargo-deb
-        run: cross install cargo-deb --locked || true
+        run: cargo install cargo-deb --locked || true
 
       - name: Build release binary
-        run: cross build --release --target ${{ matrix.target }} --locked
+        run: cargo build --release --target ${{ matrix.target }} --locked
 
       - name: Build DEB server package
         id: build_deb_server
         run: |
-          DEB_PATH=$(cross deb --no-build --target ${{ matrix.target }} -p orosu-server)
+          DEB_PATH=$(cargo deb --no-build --target ${{ matrix.target }} -p orosu-server)
           echo "deb_path=${DEB_PATH}" >> $GITHUB_OUTPUT
           echo "Built package: ${DEB_PATH}"
 
       - name: Build DEB client package
         id: build_deb_client
         run: |
-          DEB_PATH=$(cross deb --no-build --target ${{ matrix.target }} -p orosu-client)
+          DEB_PATH=$(cargo deb --no-build --target ${{ matrix.target }} -p orosu-client)
           echo "deb_path=${DEB_PATH}" >> $GITHUB_OUTPUT
           echo "Built package: ${DEB_PATH}"
 
